@@ -1,0 +1,94 @@
+---
+title: "Demographic tables"
+author: "Andrew Baxter"
+date: "11/08/2021"
+output: rtf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+source("R/import and convert.R")
+source("R/functions.R")
+library(knitr)
+library(gt)
+```
+
+```{r lumping_levels}
+lumped_data <- wave2_data %>%
+  filter(resp_age_5yr %in% c("18-24", "25-29", "30-34", "35-39", "40-44")) %>%
+  mutate(resp_age_grps = case_when(
+    resp_age_5yr %in% c("35-39", "40-44") ~ "35-44",
+    TRUE ~ as.character(resp_age_5yr)
+  ),
+  qethnicity = fct_collapse(
+    replace_na(qethnicity, "Prefer not to say"),
+    "Prefer not to say/missing" = "Prefer not to say"
+  ),
+  qrelation = fct_collapse(
+    fct_explicit_na(qrelation, "Missing"),
+    "Prefer not to say/missing" = "Prefer not to say"
+  ),
+  imd_quint = factor(
+    case_when(
+      CombinedIMD %in% 1:2 ~ "1 to 2 (most deprived)",
+      CombinedIMD %in% 3:4 ~ "3 to 4",
+      CombinedIMD %in% 5:6 ~ "5 to 6",
+      CombinedIMD %in% 7:8 ~ "7 to 8",
+      CombinedIMD %in% 9:10 ~ "9 to 10 (least deprived)",
+      TRUE ~ "Missing"
+    )
+  ))
+
+```
+
+# Cohabiting by age group
+
+```{r cohabiting}
+
+cross_tab_by_var(qrelation, "Cohabiting status", output = "gt")
+
+```
+
+# Ethnicity by age group
+
+```{r ethnicity}
+
+cross_tab_by_var(qethnicity, "Ethnicity", output = "gt")
+
+```
+
+# Education
+
+```{r UK02EDU}
+
+cross_tab_by_var(UK02EDU, "Academic qualifications", output = "gt")
+
+```
+
+# SES classification
+
+```{r qsg}
+
+cross_tab_by_var(qsg, "Social grade", output = "gt")
+
+```
+
+```{r imd_quint}
+
+cross_tab_by_var(imd_quint, "IMD quintile", output = "gt")
+
+```
+
+# Denominators
+
+```{r denominators}
+
+lumped_data %>% 
+  group_by(resp_age_grps) %>% 
+  summarise(unweighted = n(),
+            weighted = sum(weight2)) %>% 
+  pivot_longer(-resp_age_grps, names_to = "Denominator", values_to = "var") %>% 
+  pivot_wider(names_from = "resp_age_grps", values_from = "var") %>% 
+  gt()
+
+```
