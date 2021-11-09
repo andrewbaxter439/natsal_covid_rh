@@ -112,7 +112,7 @@ combine_csv_outputs <- function(exposure) {
 }
 
 # For 'stacked' outcomes (when several output tables are combined)
-combine_csv_stacked <- function(exposure, n_responses = 2, cat_labels = NULL) {
+combine_csv_stacked <- function(exposure, n_responses = 2, cat_labels = NULL, groups = 3) {
   
   imports <-
     dir() %>%
@@ -121,7 +121,7 @@ combine_csv_stacked <- function(exposure, n_responses = 2, cat_labels = NULL) {
     tibble(
       file = .,
       outcome = str_extract(file, ".*(?=_stacked)"),
-      metric = str_extract(file, paste0("(?<=", exposure, "-).*(?=\\.csv)"))
+      metric = str_extract(file, paste0("(?<=", exposure, "-)\\w*(?=\\.csv)"))
     ) %>% filter(!is.na(metric))
   
   imports %>%
@@ -136,7 +136,7 @@ combine_csv_stacked <- function(exposure, n_responses = 2, cat_labels = NULL) {
           outcome %>%
             filter(metric == met) %>%
             pull(file) %>%
-            read_csv(col_names = FALSE, skip = 0) %>%
+            read_csv(col_names = paste0("x", 1:14), skip = 0) %>%
             janitor::remove_empty(which = "rows")
         })
       
@@ -211,13 +211,15 @@ write_to_xlsx <-
   function(workbook,
            unstacked_imports = NULL,
            stacked_imports = NULL, tidy_names = TRUE) {
-    wb <- loadWorkbook(workbook)
+    path <- file.path("Output xlsx", workbook)
+    cat("opening ", path)
+    wb <- loadWorkbook(path)
     
     if(!is.null(unstacked_imports)) {
       
     unstacked_imports %>%
       walk( ~ {
-        if (.x$variable %in% getSheetNames(workbook)) {
+        if (.x$variable %in% getSheetNames(path)) {
           removeWorksheet(wb, .x$variable)
         }
         addWorksheet(wb, .x$variable)
@@ -258,7 +260,7 @@ write_to_xlsx <-
           writeData(wb, sheet = .x$variable, x = .)
       })
     
-    saveWorkbook(wb, workbook, overwrite = TRUE)
+    saveWorkbook(wb, path, overwrite = TRUE)
     
     }
     
@@ -323,12 +325,12 @@ write_to_xlsx <-
     # Now writing to xlsx? ----------------------------------------------------
     
     
-    wb <- loadWorkbook(workbook)
+    wb <- loadWorkbook(path)
     
     
     imports_w_names %>%
       walk(~ {
-        if (.x$variable %in% getSheetNames(workbook)) {
+        if (.x$variable %in% getSheetNames(path)) {
           removeWorksheet(wb, .x$variable)
         }
         addWorksheet(wb, .x$variable)
@@ -364,8 +366,88 @@ write_to_xlsx <-
           writeData(wb, sheet = .x$variable, x = .)
       })
     
-    saveWorkbook(wb, workbook, overwrite = TRUE)
+    saveWorkbook(wb, path, overwrite = TRUE)
     
     }
   }
 
+
+robust_glm <- function(df, formula, weights) {
+  require(rlang)
+  require(sandwich)
+  
+  mod <-
+    eval_tidy(quo(glm(
+      formula,
+      data = df,
+      family = binomial("logit"),
+      weights = !!substitute(weights)
+    )))
+    
+  se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+  
+  tibble::tibble(
+    coef = names(coef(mod)),
+    est = coef(mod),
+    se_robust = se,
+    z = est / se,
+    p = 2 * pnorm(abs(z), lower.tail = FALSE),
+    ll = est - 1.96 * se,
+    ul = est + 1.96 * se
+  )
+}
+
+
+return_ORs <- function(df, formula, weights) {
+  
+  cats <- levels(fct_drop(df$Cat))
+  require(rlang)
+  require(sandwich)
+  
+  mod <-
+    eval_tidy(quo(glm(
+      formula,
+      data = df,
+      family = binomial("logit"),
+      weights = !!substitute(weights)
+    )))
+  
+  se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+  
+  mod_return <- tibble::tibble(
+    coef = names(coef(mod)),
+    est = coef(mod),
+    se_robust = se,
+    z = est / se,
+    p = 2 * pnorm(abs(z), lower.tail = FALSE),
+    ll = est - 1.96 * se,
+    ul = est + 1.96 * se
+  )
+  
+  mod_return %>% filter(
+    !str_detect(coef, "(Intercept|D_Age)")
+  ) %>% 
+    mutate(Cat = str_extract(coef, paste0("(", paste(cats, collapse = "|"),")"))) %>% 
+    mutate(aOR = round(exp(est), 2),
+           CI = paste0("(", round(exp(ll), 2), ", ", round(exp(ul), 2), ")"),
+           P = case_when(
+             p < 0.001 ~  "<0.001",
+             TRUE ~ as.character(round(p, 3))
+           )) %>% 
+    bind_rows(tibble(Cat = cats[[1]], est = 1), .)
+  
+}
+
+perc_ci <- function(perc, lim = "l", n) {
+  p_t <- log(perc/(1-perc))
+  se <-  sqrt(perc*(1-perc)*(1/n))
+  
+  if (lim == "l") {
+    l_t <-  p_t-qt(0.975, n)*se/(perc*(1-perc))
+  } else {
+    l_t  <-  p_t+qt(0.975, n)*se/(perc*(1-perc))
+  }
+  l  <-  exp(l_t)/(1+exp(l_t))
+  
+  l
+}
