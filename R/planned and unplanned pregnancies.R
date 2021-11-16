@@ -92,7 +92,7 @@ robust_glm(wave2_data, D_Planned_preg_1yr ~ D_Edu3Cat_w2 + D_Age5Cat_w2, weight2
 preg_dataset <- wave2_data %>% 
   select(D_Age5Cat_w2,
          qsg,
-         qethnicity,
+         D_EthnicityCombined_w2,
          D_relstatcatv7_w2,
          D_Edu3Cat_w2,
          D_Preg1yr_w2,
@@ -114,8 +114,8 @@ preg_perc <-
             unpl_p_ll = perc_ci(unpl_p, "l", sum(weight2)),
             unpl_p_ul = perc_ci(unpl_p, "u", sum(weight2)),
             ) %>% 
-    mutate(`Pregnancy with known outcome_%` = scales::percent(preg_p, accuracy =  0.1),
-           `Pregnancy with known outcome_CI` = paste0("(", round(preg_p_ll*100, 1), "%, ", round(preg_p_ul*100, 1), "%)"),
+    mutate(`Pregnancy in last year_%` = scales::percent(preg_p, accuracy =  0.1),
+           `Pregnancy in last year_CI` = paste0("(", round(preg_p_ll*100, 1), "%, ", round(preg_p_ul*100, 1), "%)"),
            `Unplanned/ambivalent pregnancy_%` = scales::percent(unpl_p, accuracy =  0.1),
            `Unplanned/ambivalent pregnancy_CI` = paste0("(", round(unpl_p_ll*100, 1), "%, ", round(unpl_p_ul*100, 1), "%)"))
   
@@ -142,16 +142,17 @@ comp_labels <- tribble(
   ~Comparison, ~label,
   "D_Age5Cat_w2", "Age group",
   "qsg", "Social grade",
-  "qethnicity", "Ethnicity",
+  "D_EthnicityCombined_w2", "Ethnicity",
   "D_relstatcatv7_w2", "Relationship/Cohabiting status",
   "D_Edu3Cat_w2", "Education"
 )
 
 
+
 preg_perc %>% select(
   Comparison,
-  `Pregnancy with known outcome_%`,
-  `Pregnancy with known outcome_CI`,
+  `Pregnancy in last year_%`,
+  `Pregnancy in last year_CI`,
   `Unplanned/ambivalent pregnancy_%`,
   `Unplanned/ambivalent pregnancy_CI`,
   Cat
@@ -185,8 +186,8 @@ preg_perc %>% select(
   select(
     ` `,
     "  " = Cat,
-    `Pregnancy with known outcome_%`,
-    `Pregnancy with known outcome_CI`,
+    `Pregnancy in last year_%`,
+    `Pregnancy in last year_CI`,
     `Unplanned/ambivalent pregnancy_%`,
     `Unplanned/ambivalent pregnancy_CI`,
     `Unadjusted Odds ratio_OR`,
@@ -198,6 +199,42 @@ preg_perc %>% select(
     # `p-value`,
     label
   ) %>%
+  pivot_longer(
+    3:12,
+    names_to = c("outcome", "met"),
+    values_to = "val",
+    names_sep = "_"
+  ) %>%
+  pivot_wider(
+    id_cols = c(` `, `  `, label, outcome),
+    names_from = met,
+    values_from = val
+  ) %>%
+  mutate(
+    `% (CI)` = paste(`%`, CI),
+    `OR (CI)` = paste(OR, CI),
+    `aOR (CI)` = paste(aOR, CI)
+  ) %>%
+  pivot_wider(
+    id_cols = c(` `, `  `, label),
+    names_from = outcome,
+    values_from = c(`% (CI)`,
+                    `OR (CI)`,
+                    `aOR (CI)`,
+                    `p-value`),
+    names_glue = "{outcome}_{.value}"
+  ) %>% 
+  select(
+    ` `,
+    `  `,
+    label,
+    `Pregnancy in last year_% (CI)`,
+    `Unplanned/ambivalent pregnancy_% (CI)`,
+    `Unadjusted Odds ratio_OR (CI)`,
+    `Unadjusted Odds ratio_p-value`,
+    `Age-adjusted Odds ratio_aOR (CI)`,
+    `Age-adjusted Odds ratio_p-value`
+  ) %>% 
   gt(groupname_col = "label", rowname_col = " ") %>%
   summary_rows(
     fns = list(" "  = ~ " "),
