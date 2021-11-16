@@ -49,7 +49,15 @@ wave2_data %>%
   scale_y_continuous("Proportion of pregnancies", labels = scales::percent) +
   scale_fill_sphsu(name = "Category of\npregnancy planning") +
   scale_colour_sphsu(name = "Category of\npregnancy planning") +
-  scale_x_discrete("London Measure of Unplanned Pregnancy score", drop = FALSE)
+  scale_x_discrete("London Measure of Unplanned Pregnancy score", drop = FALSE) +
+  theme(panel.background = element_blank(),
+        legend.key = element_blank())
+
+ggsave(file.path(old_wd, "graphs/LMUP_scores.png"), width = 250, height = 120, units = "mm", dpi = 300)
+
+# going glms --------------------------------------------------------------
+
+
 
 wave2_data %>% 
   glm(D_Planned_preg_1yr ~ D_Age5Cat_w2, data = ., family = binomial, weights = weight2) %T>%
@@ -111,6 +119,15 @@ preg_perc <-
            `Unplanned/ambivalent pregnancy_%` = scales::percent(unpl_p, accuracy =  0.1),
            `Unplanned/ambivalent pregnancy_CI` = paste0("(", round(unpl_p_ll*100, 1), "%, ", round(unpl_p_ul*100, 1), "%)"))
   
+unadj_ors <- preg_dataset %>% 
+  select(- D_LMUPScore_w2) %>% 
+  pivot_longer(- c(Preg_unpl_amb, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  group_by(Comparison) %>% 
+  nest() %>% 
+  mutate(mod = map(data, ~ return_ORs(.x, Preg_unpl_amb ~ Cat, weight2))) %>% 
+  unnest(mod) %>% 
+  mutate(OR = aOR, aOR = NULL)
+  
 adj_ors <- preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
   pivot_longer(- c(Preg_unpl_amb, D_Age5Cat_w2, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
@@ -118,6 +135,7 @@ adj_ors <- preg_dataset %>%
   nest() %>% 
   mutate(mod = map(data, ~ return_ORs(.x, Preg_unpl_amb ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   unnest(mod)
+
 
 
 comp_labels <- tribble(
@@ -145,7 +163,18 @@ preg_perc %>% select(
         Cat,
         `Age-adjusted Odds ratio_aOR` = aOR,
         `Age-adjusted Odds ratio_CI` = CI,
-        `p-value` = P
+        `Age-adjusted Odds ratio_p-value` = P
+      ),
+    by = c("Comparison", "Cat")
+  ) %>%
+  left_join(
+    unadj_ors %>%
+      select(
+        Comparison,
+        Cat,
+        `Unadjusted Odds ratio_OR` = OR,
+        `Unadjusted Odds ratio_CI` = CI,
+        `Unadjusted Odds ratio_p-value` = P
       ),
     by = c("Comparison", "Cat")
   ) %>%
@@ -160,9 +189,13 @@ preg_perc %>% select(
     `Pregnancy with known outcome_CI`,
     `Unplanned/ambivalent pregnancy_%`,
     `Unplanned/ambivalent pregnancy_CI`,
+    `Unadjusted Odds ratio_OR`,
+    `Unadjusted Odds ratio_CI`,
+    `Unadjusted Odds ratio_p-value`,
     `Age-adjusted Odds ratio_aOR`,
     `Age-adjusted Odds ratio_CI`,
-    `p-value`,
+    `Age-adjusted Odds ratio_p-value`,
+    # `p-value`,
     label
   ) %>%
   gt(groupname_col = "label", rowname_col = " ") %>%
@@ -173,7 +206,7 @@ preg_perc %>% select(
     missing_text = " "
   ) %>%
   tab_spanner_delim("_") %>%
-  gtsave(., "preg_unpl_OR.html")
+  gtsave(., "preg_unpl_OR_plus.html")
 
 # temp bit - calculating se for percs -------------------------------------
 
