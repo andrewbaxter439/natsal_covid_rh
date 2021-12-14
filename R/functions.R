@@ -400,7 +400,7 @@ robust_glm <- function(df, formula, weights) {
 
 return_ORs <- function(df, formula, weights) {
   
-  cats <- levels(fct_drop(df$Cat))
+  cats <- levels(fct_drop(df$Cat)) %>% str_replace_all("(\\(|\\))", "\\\\\\1")
   require(rlang)
   require(sandwich)
   
@@ -410,7 +410,7 @@ return_ORs <- function(df, formula, weights) {
       data = df,
       family = binomial("logit"),
       weights = !!substitute(weights)
-    )))
+    )), data = df)
   
   se <- sqrt(diag(vcovHC(mod, type = "HC0")))
   

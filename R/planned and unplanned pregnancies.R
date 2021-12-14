@@ -97,6 +97,13 @@ preg_dataset <- wave2_data %>%
          D_Edu3Cat_w2,
          D_Preg1yr_w2,
          D_LMUPScore_w2, 
+         EconActChg4_w2,
+         EconActChg5_w2,
+         D_drinkGrp_w2,
+         SDSdrinkchangeW2_w2,
+         Smokenow_w2,
+         D_PHQ2Cat_w2,
+         D_GAD2Cat_w2,
          weight2) %>% 
   mutate(Preg_unpl_amb = if_else(D_LMUPScore_w2 < 10 & D_Preg1yr_w2 == "Yes", 1, 0, 0),
          # RelStat_nosing = factor(D_relstatcatv7_w2, exclude = "Single")  # no longer required
@@ -106,6 +113,7 @@ preg_perc <-
   preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
   pivot_longer(- c(Preg_unpl_amb, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  filter(!is.na(Cat)) %>%
   group_by(Comparison, Cat) %>%
   summarise(preg_p = sum(weight2[D_Preg1yr_w2 == "Yes"])/sum(weight2),
             unpl_p = sum(weight2[Preg_unpl_amb == 1])/sum(weight2),
@@ -122,6 +130,7 @@ preg_perc <-
 unadj_ors <- preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
   pivot_longer(- c(Preg_unpl_amb, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  filter(!is.na(Cat)) %>%
   group_by(Comparison) %>% 
   nest() %>% 
   mutate(mod = map(data, ~ return_ORs(.x, Preg_unpl_amb ~ Cat, weight2))) %>% 
@@ -131,6 +140,7 @@ unadj_ors <- preg_dataset %>%
 adj_ors <- preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
   pivot_longer(- c(Preg_unpl_amb, D_Age5Cat_w2, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  filter(!is.na(Cat)) %>%
   group_by(Comparison) %>% 
   nest() %>% 
   mutate(mod = map(data, ~ return_ORs(.x, Preg_unpl_amb ~ Cat + D_Age5Cat_w2, weight2))) %>% 
@@ -138,14 +148,35 @@ adj_ors <- preg_dataset %>%
 
 
 
-comp_labels <- tribble(
-  ~Comparison, ~label,
-  "D_Age5Cat_w2", "Age group",
-  "qsg", "Social grade",
-  "D_EthnicityCombined_w2", "Ethnicity",
-  "D_relstatcatv7_w2", "Relationship/Cohabiting status",
-  "D_Edu3Cat_w2", "Education"
-)
+comp_labels <- tibble(
+  Comparison = c(
+  "D_Age5Cat_w2",
+  "qsg",
+  "D_EthnicityCombined_w2",
+  "D_Edu3Cat_w2",
+  "EconActChg4_w2",
+  "EconActChg5_w2",
+  "D_drinkGrp_w2",
+  "SDSdrinkchangeW2_w2",
+  "Smokenow_w2",
+  "D_relstatcatv7_w2",
+  "D_PHQ2Cat_w2",
+  "D_GAD2Cat_w2")
+) %>%
+  mutate(label = map_chr(Comparison, function(exp_var) {
+    wave2_data %>%
+      pull(exp_var) %>%
+      attr("label")
+  }))
+
+# tribble(
+#   ~Comparison, ~label,
+#   "D_Age5Cat_w2", "Age group",
+#   "qsg", "Social grade",
+#   "D_EthnicityCombined_w2", "Ethnicity",
+#   "D_relstatcatv7_w2", "Relationship/Cohabiting status",
+#   "D_Edu3Cat_w2", "Education"
+# )
 
 
 
@@ -156,7 +187,7 @@ preg_perc %>% select(
   `Unplanned/ambivalent pregnancy_%`,
   `Unplanned/ambivalent pregnancy_CI`,
   Cat
-) %>%
+) %>% 
   left_join(
     adj_ors %>%
       select(
@@ -181,8 +212,8 @@ preg_perc %>% select(
   ) %>%
   left_join(comp_labels, by = "Comparison") %>%
   ungroup() %>%
-  mutate(across(everything(), .fns = replace_na, "-")) %>%
-  filter(Cat != "-") %>% mutate(` ` = " ") %>%
+  filter(!is.na(Cat)) %>% 
+    mutate(` ` = " ") %>%
   select(
     ` `,
     "  " = Cat,
@@ -199,6 +230,7 @@ preg_perc %>% select(
     # `p-value`,
     label
   ) %>%
+  mutate(across(everything(), .fns = replace_na, "-")) %>%
   pivot_longer(
     3:12,
     names_to = c("outcome", "met"),
@@ -213,8 +245,10 @@ preg_perc %>% select(
   mutate(
     `% (CI)` = paste(`%`, CI),
     `OR (CI)` = paste(OR, CI),
-    `aOR (CI)` = paste(aOR, CI)
+    `aOR (CI)` = paste(aOR, CI),
+    across(everything(), ~str_replace_all(.x, "- -", "-"))
   ) %>%
+  # View()
   pivot_wider(
     id_cols = c(` `, `  `, label),
     names_from = outcome,

@@ -1,6 +1,7 @@
 source(file.path(old_wd, "R/import and convert.R"))
 source(file.path(old_wd, "R/functions.R"))
 library(gt)
+library(weights)
 
 old_wd <- setwd(
   "T:/projects/National_survey_sexual_attitudes_IV_S00144/09 Natsal Covid/05 Data Analysis/Data Analysis AB/Reproductive health/dat_out"
@@ -165,7 +166,9 @@ bind_rows(sh_access, rh_service, rh_why)  %>%
     columns = ` `,
     groups = TRUE,
     missing_text = " "
-  )  %>%
+  ) 
+
+# %>%
   gtsave("Serv_acc.html")
 
 
@@ -175,10 +178,21 @@ bind_rows(sh_access, rh_service, rh_why)  %>%
 
 
 
-sh_access_a <- wave2_data %>%
-  filter(across(matches("ServTry[1-4]_w2"), .fns = ~ !is.na(.x))) %>%
+sh_access_dat <- wave2_data %>%
+  filter(across(matches("ServTry[1-4]_w2"), .fns = ~ !is.na(.x))) 
+
+ 
+  chisq.test(sh_access_dat$ServTry1_w2, sh_access_dat$D_Age5Cat_w2)
+  weights::wtd.chi.sq(sh_access_dat$ServTry1_w2, sh_access_dat$D_Age5Cat_w2, weight = sh_access_dat$weight2)
+  
+
+sh_access_a <- sh_access_dat %>% 
+  mutate(p = wtd.chi.sq(D_TryAccess_w2, D_Age5Cat_w2, weight = weight2)["p.value"],
+         xsq = wtd.chi.sq(D_TryAccess_w2, D_Age5Cat_w2, weight = weight2)["Chisq"]) %>% 
   group_by(D_TryAccess_w2, D_Age5Cat_w2) %>%
-  count(wt = weight2) %>%
+  summarise(n = sum(weight2),
+            p = max(p),
+            xsq = max(xsq)) %>%
   ungroup(D_TryAccess_w2) %>%
   mutate(
     lab = D_TryAccess_w2,
@@ -189,6 +203,9 @@ sh_access_a <- wave2_data %>%
   ) %>% 
   select(-n)
 
+sh_access_dat %>% 
+  summarise(p = wtd.chi.sq(D_TryAccess_w2, D_Age5Cat_w2, weight = weight2)["p.value"])
+  
 
 rh_service_a <- wave2_data %>%
   # filter(D_TryAccess_w2 == "Problems accessing a RH service") %>%
@@ -237,8 +254,9 @@ bind_rows(bind_rows(sh_access, rh_service, rh_why)  %>%
          CI = paste0("(", sprintf(fmt = "%.1f", round(ll*100, 1)), "%, ", sprintf(fmt = "%.1f", round(ul*100, 1)), "%)"),
          CI = if_else(str_detect(CI, "NaN"), "-", CI)) %>% 
   bind_rows(bind_rows(lab1, lab2, mutate(lab2, cat = "Reason for failing to access")) %>% mutate(D_Age5Cat_w2 = "Total") ) %>% 
-  select(D_Age5Cat_w2, ` `, "  " = lab, cat, `%`, CI) %>% 
+  select(D_Age5Cat_w2, ` `, "  " = lab, cat, `%`, CI, p) %>% 
   pivot_wider(id_cols = c(` `, `  `, cat), names_from = D_Age5Cat_w2, values_from = c(`%`, CI), names_glue = "{D_Age5Cat_w2}_{.value}", values_fill = " ") %>% 
+  ## new step -- add p values in here?? ##
   gt(rowname_col = " ", groupname_col = "cat") %>% 
   summary_rows(
     fns = list(" "  = ~ " "),
@@ -246,5 +264,5 @@ bind_rows(bind_rows(sh_access, rh_service, rh_why)  %>%
     groups = TRUE,
     missing_text = " "
   ) %>% 
-  tab_spanner_delim(delim = "_", split = "first") %>% 
+  tab_spanner_delim(delim = "_", split = "first") #%>% 
   gtsave("serv_acc_byage.html")
