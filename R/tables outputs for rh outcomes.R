@@ -6,7 +6,7 @@ ungrouo <- ungroup
 
 # D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
 var_exp <- quo(D_Age5Cat_w2)
-var_out <- quo(D_ConNoCon_w2)
+var_out <- quo(Total)
 
 crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   
@@ -36,11 +36,11 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
       CI = paste0(
         "(",
         sprintf(fmt = "%.1f", round(ll * 100, 1)),
-        ", ",
+        ",\u00A0",
         sprintf(fmt = "%.1f", round(ul * 100, 1)),
         ")"
       ),
-      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI))
+      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = "\n"))
     ) %>%
     ungroup()
 
@@ -63,7 +63,7 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     ) %>% 
     pivot_longer(c(CI, `%`), values_to = "%_CI") %>%
     mutate(exposure = c(" ", "  ")) %>% 
-# select(-name) %>%
+    select(-name) %>% 
     ungroup()
 
   tabout <- tab1 %>%
@@ -87,6 +87,7 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   tabout
 }
 
+crosstab_single_var(qsg, Total)
 crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
 crosstab_single_var(qsg, D_ConNoCon_w2)
 crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
@@ -129,7 +130,7 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) %>% 
+  ) # %>% 
   gtsave("Contraception outcomes.html")
 
 wave2_data %>%
