@@ -2,7 +2,7 @@ source(file.path(old_wd, "R/import and convert.R"))
 source(file.path(old_wd, "R/functions.R"))
 library(gt)
 
-ungruo <- ungroup
+ungrouo <- ungroup
 
 # D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
 var_exp <- quo(D_Age5Cat_w2)
@@ -51,8 +51,8 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     summarise(
       w = round(sum(weight2), 0),
       n = n(),
-      p = wtd.chi.sq(outcome, exposure, weight = weight2)["p.value"],
-      xsq = wtd.chi.sq(outcome, exposure, weight = weight2)["Chisq"]
+      p = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["p.value"],
+      xsq = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["Chisq"]
     ) %>%
     transmute(
       exposure = " ",
@@ -115,10 +115,12 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
 wave2_data %>%
   crosstab_per_outcome(
     D_ConNoCon_w2,
+    Total,
     D_Age5Cat_w2,
-    qsg,
     D_EthnicityCombined_w2,
+    qsg,
     D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
     EconActChg4_w2,
     EconActChg5_w2,
     D_drinkGrp_w2,
@@ -126,16 +128,18 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) # %>% 
+  ) %>% 
   gtsave("Contraception outcomes.html")
 
 wave2_data %>%
   crosstab_per_outcome(
     D_SwitchTo_w2,
+    Total,
     D_Age5Cat_w2,
-    qsg,
     D_EthnicityCombined_w2,
+    qsg,
     D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
     EconActChg4_w2,
     EconActChg5_w2,
     D_drinkGrp_w2,
@@ -149,10 +153,12 @@ wave2_data %>%
 wave2_data %>%
   crosstab_per_outcome(
     D_ServAccComb_w2,
+    Total,
     D_Age5Cat_w2,
-    qsg,
     D_EthnicityCombined_w2,
+    qsg,
     D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
     EconActChg4_w2,
     EconActChg5_w2,
     D_drinkGrp_w2,

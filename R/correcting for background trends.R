@@ -2,7 +2,7 @@ library(readxl)
 library(tidyverse)
 library(SPHSUgraphs)
 library(broom)
-conceptions2019workbook <- read_excel(file.path(old_wd, "conceptions2019workbook.xlsx"),
+conceptions2019workbook <- read_excel(file.path(old_wd, "data", "conceptions2019workbook.xlsx"),
 sheet = "Table 1a", skip = 4)
 
 
@@ -193,7 +193,15 @@ surv_graphs / natsal_graphs
 # importing Chlamydia data ------------------------------------------------
 
 
-chlamydia_diag <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/sti_workbook.xlsx",
+chlamydia_diag <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/sti_workbook.xlsx",
   sheet = "England", skip = 56, n_max = 3)
+
+
+sti_testing <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
+        "natsal", 2010, "Chlamydia test", 0.151, 0.139, 0.163,
+        "natsal", 2020, "Chlamydia test", 0.041, 0.032, 0.053,
+        "natsal", 2010, "HIV test", 0.060, 0.051, 0.070,
+        "natsal", 2020, "HIV test", 0.065, 0.054, 0.079 
+)
 
   
