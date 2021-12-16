@@ -5,8 +5,9 @@ library(gt)
 ungrouo <- ungroup
 
 # D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
+var_out <- quo(D_ConNoCon_w2)
 var_exp <- quo(D_Age5Cat_w2)
-var_out <- quo(Total)
+var_exp <- quo(Total)
 
 crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   
@@ -44,7 +45,26 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     ) %>%
     ungroup()
 
-  
+  if(quo_name(var_exp) == "Total") {
+    
+    tab_tot <- df %>%
+      # rename(exposure = !!var_exp, outcome = !!var_out) %>%
+      # filter(!is.na(outcome),!is.na(exposure)) %>%
+      summarise(
+        w = round(sum(weight2), 0),
+        n = n()
+      ) %>%
+      transmute(
+        # cat = title,
+        # `%` = if_else(p < 0.001, "p<0.001", paste0("p=", round(p, 3))),
+        # outcome = "Total",
+        denom = paste0("\u200D(", round(w, 0), "," , n, ")")
+      )
+    
+    tab2 <- tibble()
+    
+  } else  {
+    
   
   tab2 <- df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
@@ -66,11 +86,13 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     select(-name) %>% 
     ungroup()
 
+  }
+  
   tabout <- tab1 %>%
     group_by(exposure, cat) %>%
     summarise(n = sum(n), wt = round(sum(wt), 0)) %>% 
     mutate(outcome = "Total",
-           `%_CI` = "100.0%") %>%
+           `%_CI` = if_else(quo_name(var_exp) == "Total", tab_tot$denom,"100.0%")) %>%
     bind_rows(tab1, tab2, .) %>%
     select(exposure, outcome, cat, `%_CI`) %>%
     mutate(` ` = " ",
@@ -87,7 +109,7 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   tabout
 }
 
-crosstab_single_var(qsg, Total)
+crosstab_single_var(Total, D_ConNoCon_w2)
 crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
 crosstab_single_var(qsg, D_ConNoCon_w2)
 crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
