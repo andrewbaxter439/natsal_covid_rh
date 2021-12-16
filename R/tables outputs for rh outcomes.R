@@ -48,16 +48,11 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   if(quo_name(var_exp) == "Total") {
     
     tab_tot <- df %>%
-      # rename(exposure = !!var_exp, outcome = !!var_out) %>%
-      # filter(!is.na(outcome),!is.na(exposure)) %>%
       summarise(
         w = round(sum(weight2), 0),
         n = n()
       ) %>%
       transmute(
-        # cat = title,
-        # `%` = if_else(p < 0.001, "p<0.001", paste0("p=", round(p, 3))),
-        # outcome = "Total",
         denom = paste0("\u200D(", round(w, 0), "," , n, ")")
       )
     
@@ -77,23 +72,18 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     ) %>%
     transmute(
       cat = title,
-      `%` = if_else(p < 0.001, "p<0.001", paste0("p=", round(p, 3))),
-      CI = paste0("\u200D(", round(w, 0), "," , n, ")"),
-      outcome = "Total"
+      Total = if_else(p < 0.001, "p<0.001", paste0("p=", round(p, 3))),
+      `(Denom.)` = paste0("\u200D(", round(w, 0), "," , n, ")")
     ) %>% 
-    pivot_longer(c(CI, `%`), values_to = "%_CI") %>%
-    mutate(exposure = c(" ", "  ")) %>% 
-    select(-name) %>% 
+    mutate(`  ` = " ",
+           ` ` = " ") %>% 
     ungroup()
 
   }
   
-  tabout <- tab1 %>%
-    group_by(exposure, cat) %>%
-    summarise(n = sum(n), wt = round(sum(wt), 0)) %>% 
-    mutate(outcome = "Total",
-           `%_CI` = if_else(quo_name(var_exp) == "Total", tab_tot$denom,"100.0%")) %>%
-    bind_rows(tab1, tab2, .) %>%
+# new method --------------------------------------------------------------
+
+    tab1b <-   tab1 %>% 
     select(exposure, outcome, cat, `%_CI`) %>%
     mutate(` ` = " ",
            `  ` = exposure,
@@ -101,16 +91,30 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     pivot_wider(
       id_cols = c(cat, `  `, " "),
       names_from = outcome,
-      values_from = `%_CI`,
+      values_from = c(`%_CI`),
       values_fill = " "
-    ) %>% 
-    rename(`Total_(Denom.)` = `Total`)
+    ) 
+  
+  tabout <- tab1 %>%
+    group_by(exposure, cat) %>%
+    summarise(n = sum(n), wt = round(sum(wt), 0)) %>% 
+    ungroup() %>% 
+    mutate(` ` = " ",
+           `  ` = as.character(exposure),
+           .keep = "unused",
+           `(Denom.)` = paste0("\u200D(", wt, ",", n, ")"),
+           Total = "100.0%") %>% 
+    left_join(tab1b, by = c("cat", " ", "  ")) %>% 
+    bind_rows(tab2) %>%
+    mutate(across(.fns = ~ replace_na(.x, " "))) %>% 
+    select(-Total, -`(Denom.)`, Total, `(Denom.)`)
+    
 
   tabout
 }
 
-crosstab_single_var(Total, D_ConNoCon_w2)
 crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
+crosstab_single_var(Total, D_ConNoCon_w2)
 crosstab_single_var(qsg, D_ConNoCon_w2)
 crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
 
@@ -137,6 +141,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
 
 
 wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   crosstab_per_outcome(
     D_ConNoCon_w2,
     Total,
@@ -152,10 +157,11 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) # %>% 
+  )  %>% 
   gtsave("Contraception outcomes.html")
 
 wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   crosstab_per_outcome(
     D_SwitchTo_w2,
     Total,
@@ -175,6 +181,7 @@ wave2_data %>%
   gtsave("Contraception switching.html")
 
 wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   crosstab_per_outcome(
     D_ServAccComb_w2,
     Total,
