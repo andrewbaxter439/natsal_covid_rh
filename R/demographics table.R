@@ -7,7 +7,7 @@ var_out <- quo(D_Age5Cat_w2)
 var_exp <- quo(qsg)
 var_exp <- quo(Total)
 
-crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
+denom_single_var <- function(var_exp, var_out, df = wave2_data) {
   
   op <- options(dplyr.summarise.inform=FALSE)
   on.exit(options(op))
@@ -20,6 +20,43 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     attr("label")
   
   
+  
+  if(quo_name(var_exp) == "Total") {
+    
+    tabout <- df %>%
+      group_by(!!var_out) %>% 
+      summarise(
+        wt = round(sum(weight2), 0),
+        n = n()
+      ) %>%
+      mutate(perc = wt / sum(wt)) %>% 
+      janitor::adorn_totals() %>% 
+      as_tibble %>% 
+      mutate(
+        Denominators = paste0("\\u200D", round(wt, 0), "," , n),
+      ll = perc_ci(perc, n = sum(wt)),
+      ul = perc_ci(perc, "u", sum(wt)),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      CI = paste0(
+        "(",
+        sprintf(fmt = "%.1f", round(ll * 100, 1)),
+        ",\u00A0",
+        sprintf(fmt = "%.1f", round(ul * 100, 1)),
+        ")"
+      ),
+      Total = case_when(
+        str_detect(!!var_out, "Total") ~ "100.0%",
+        str_detect(CI, "NaN") ~ "-", 
+        TRUE ~ paste(`%`, CI, sep = "\n"))
+      ) %>% 
+      select(!!var_out, Total, Denominators) %>% 
+      pivot_longer(-!!var_out, names_to = " ") %>% 
+      pivot_wider(` `, names_from = !!var_out, values_from = value)
+    
+    # tab2 <- tibble()
+    
+  } else  {
+    
   tab1 <- df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
     filter(!is.na(outcome), !is.na(exposure)) %>%
@@ -43,21 +80,6 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     ) %>%
     ungroup()
   
-  if(quo_name(var_exp) == "Total") {
-    
-    tab_tot <- df %>%
-      summarise(
-        w = round(sum(weight2), 0),
-        n = n()
-      ) %>%
-      transmute(
-        denom = paste0("\\u200D(", round(w, 0), "," , n, ")")
-      )
-    
-    tab2 <- tibble()
-    
-  } else  {
-    
     
     tab2 <- df %>%
       rename(exposure = !!var_exp, outcome = !!var_out) %>%
@@ -76,10 +98,8 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
       mutate(`  ` = " ",
              ` ` = " ") %>% 
       ungroup()
-    
-  }
-  
-  tab1b <-   tab1 %>% 
+
+      tab1b <-   tab1 %>% 
     select(exposure, outcome, cat, `%_CI`) %>%
     mutate(` ` = " ",
            `  ` = exposure,
@@ -98,21 +118,24 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     mutate(` ` = " ",
            `  ` = as.character(exposure),
            .keep = "unused",
-           `(Denom.)` = paste0("\\u200D(", wt, ",", n, ")"),
+           # `(Denom.)` = paste0("\\u200D(", wt, ",", n, ")"),
            Total = "100.0%") %>% 
     left_join(tab1b, by = c("cat", " ", "  ")) %>% 
     bind_rows(tab2) %>%
     mutate(across(.fns = ~ replace_na(.x, " "))) %>% 
-    select(-Total, -`(Denom.)`, Total, `(Denom.)`)
+    select(-Total, Total)
+    
+  }
+  
   
   
   tabout
 }
 
-crosstab_single_var(qsg, D_Age5Cat_w2) 
-crosstab_single_var(Total, D_Age5Cat_w2)
-crosstab_single_var(qsg, D_Age5Cat_w2)
-crosstab_single_var(D_EthnicityCombined_w2, D_Age5Cat_w2)
+denom_single_var(qsg, D_Age5Cat_w2) 
+denom_single_var(Total, D_Age5Cat_w2)
+denom_single_var(qsg, D_Age5Cat_w2)
+denom_single_var(D_EthnicityCombined_w2, D_Age5Cat_w2)
 
 crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
   
@@ -122,7 +145,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
   
   vars_exp %>%
     map_dfr(function(exp) {
-      crosstab_single_var(!!exp, !!var_out, df = data)
+      denom_single_var(!!exp, !!var_out, df = data)
     }) %>%
     gt(rowname_col = " ", groupname_col = "cat") %>%
     summary_rows(
