@@ -81,8 +81,6 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
 
   }
   
-# new method --------------------------------------------------------------
-
     tab1b <-   tab1 %>% 
     select(exposure, outcome, cat, `%_CI`) %>%
     mutate(` ` = " ",
