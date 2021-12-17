@@ -44,14 +44,15 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
         sprintf(fmt = "%.1f", round(ul * 100, 1)),
         ")"
       ),
-      Total = case_when(
+      `Age distribution` = case_when(
         str_detect(!!var_out, "Total") ~ "100.0%",
         str_detect(CI, "NaN") ~ "-", 
         TRUE ~ paste(`%`, CI, sep = "\n"))
       ) %>% 
-      select(!!var_out, Total, Denominators) %>% 
-      pivot_longer(-!!var_out, names_to = " ") %>% 
-      pivot_wider(` `, names_from = !!var_out, values_from = value)
+      select(!!var_out, `Age distribution`, Denominators) %>% 
+      pivot_longer(-!!var_out, names_to = "  ") %>% 
+      mutate(cat = "Total", ` ` = " ") %>% 
+      pivot_wider(c(cat, ` `,`  `), names_from = !!var_out, values_from = value) 
     
     # tab2 <- tibble()
     
@@ -137,7 +138,7 @@ denom_single_var(Total, D_Age5Cat_w2)
 denom_single_var(qsg, D_Age5Cat_w2)
 denom_single_var(D_EthnicityCombined_w2, D_Age5Cat_w2)
 
-crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
+demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
   
   var_out <- rlang::enquo(outcome)
   rlang::eval_tidy(var_out, data = data)
