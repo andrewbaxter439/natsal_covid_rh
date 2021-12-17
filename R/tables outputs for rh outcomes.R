@@ -47,14 +47,14 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
 
   if(quo_name(var_exp) == "Total") {
     
-    tab_tot <- df %>%
-      summarise(
-        w = round(sum(weight2), 0),
-        n = n()
-      ) %>%
-      transmute(
-        denom = paste0("\u200D(", round(w, 0), "," , n, ")")
-      )
+    # tab_tot <- df %>%
+    #   summarise(
+    #     w = round(sum(weight2), 0),
+    #     n = n()
+    #   ) %>%
+    #   transmute(
+    #     denom = paste0("\u200D(", round(w, 0), "," , n, ")")
+    #   )
     
     tab2 <- tibble()
     
@@ -104,8 +104,9 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
            Total = "100.0%") %>% 
     left_join(tab1b, by = c("cat", " ", "  ")) %>% 
     bind_rows(tab2) %>%
-    mutate(across(.fns = ~ replace_na(.x, " "))) %>% 
-    select(-Total, -`(Denom.)`, Total, `(Denom.)`)
+    mutate(across(.fns = ~ replace_na(.x, " ")),
+           `  ` = if_else(`  ` == "Total", "Distribution of outcomes", `  `)) %>% 
+    select(-Total, -`(Denom.)`, `Total\n(Row)` = Total, `(Denom.)`)
     
 
   tabout
