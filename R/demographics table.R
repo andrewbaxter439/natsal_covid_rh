@@ -59,9 +59,10 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
   tab1 <-  df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
     filter(!is.na(outcome), !is.na(exposure)) %>%
-    group_by(exposure, outcome) %>%
+    group_by(outcome, exposure) %>%
     summarise(wt = sum(weight2),
-              n = n()) %>%
+              n = n(),
+              .groups = "drop_last") %>%
     mutate(
       cat = title,
       perc = wt / sum(wt),
@@ -128,6 +129,7 @@ denom_single_var(qsg, D_Age5Cat_w2)
 denom_single_var(qsg, D_Age5Cat_w2)
 denom_single_var(D_EthnicityCombined_w2, D_Age5Cat_w2)
 
+
 demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
   
   var_out <- rlang::enquo(outcome)
@@ -144,8 +146,7 @@ demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
       columns = ` `,
       groups = TRUE,
       missing_text = " "
-    ) %>%
-    tab_spanner_delim(delim = "_", split = "first")
+    ) 
   
 }
 
@@ -155,6 +156,7 @@ wave2_data %>%
     Total,
     D_EthnicityCombined_w2,
     qsg,
+    SexID_w2,
     D_Edu3Cat_w2,
     D_relstatcatv7_w2,
     EconActChg4_w2,
@@ -164,4 +166,5 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) 
+  ) %>% 
+  gtsave("Demographics.html")
