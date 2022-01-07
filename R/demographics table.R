@@ -3,9 +3,9 @@ source(file.path(old_wd, "R/functions.R"))
 library(gt)
 
 
-var_out <- quo(D_Age5Cat_w2)
-var_exp <- quo(qsg)
-var_exp <- quo(Total)
+# var_out <- quo(D_Age5Cat_w2)
+# var_exp <- quo(qsg)
+# var_exp <- quo(Total)
 
 denom_single_var <- function(var_exp, var_out, df = wave2_data) {
   
@@ -47,7 +47,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
       `Age distribution` = case_when(
         str_detect(!!var_out, tot_name) ~ "100.0%",
         str_detect(CI, "NaN") ~ "-", 
-        TRUE ~ paste(`%`, CI, sep = "\n"))
+        TRUE ~ paste(`%`, CI, sep = " "))
       ) %>% 
       select(!!var_out, `Age distribution`, Denominators) %>% 
       pivot_longer(-!!var_out, names_to = "  ") %>% 
@@ -76,7 +76,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
         sprintf(fmt = "%.1f", round(ul * 100, 1)),
         ")"
       ),
-      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = "\n"))
+      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = " "))
     ) %>%
     ungroup()
     
@@ -126,7 +126,6 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
 
 denom_single_var(Total, D_Age5Cat_w2)
 denom_single_var(qsg, D_Age5Cat_w2) 
-denom_single_var(qsg, D_Age5Cat_w2)
 denom_single_var(D_EthnicityCombined_w2, D_Age5Cat_w2)
 
 
@@ -155,8 +154,8 @@ wave2_data %>%
     D_Age5Cat_w2,
     Total,
     D_EthnicityCombined_w2,
+    D_SexIDL_w2,
     qsg,
-    SexID_w2,
     D_Edu3Cat_w2,
     D_relstatcatv7_w2,
     EconActChg4_w2,
