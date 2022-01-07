@@ -5,9 +5,9 @@ library(gt)
 ungrouo <- ungroup
 
 # D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
-var_out <- quo(D_ConNoCon_w2)
-var_exp <- quo(D_Age5Cat_w2)
-var_exp <- quo(Total)
+# var_out <- quo(D_ConNoCon_w2)
+# var_exp <- quo(D_Age5Cat_w2)
+# var_exp <- quo(Total)
 
 crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   
@@ -41,7 +41,7 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
         sprintf(fmt = "%.1f", round(ul * 100, 1)),
         ")"
       ),
-      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = "\n"))
+      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = " "))
     ) %>%
     ungroup()
 
@@ -72,7 +72,7 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
     ) %>%
     transmute(
       cat = title,
-      Total = if_else(p < 0.001, "p<0.001", paste0("p=", round(p, 3))),
+      Total = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3)))),
       `(Denom.)` = paste0("\u200D(", round(w, 0), "," , n, ")")
     ) %>% 
     mutate(`  ` = " ",
@@ -112,8 +112,8 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   tabout
 }
 
-crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
 crosstab_single_var(Total, D_ConNoCon_w2)
+crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
 crosstab_single_var(qsg, D_ConNoCon_w2)
 crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
 
@@ -146,6 +146,7 @@ wave2_data %>%
     Total,
     D_Age5Cat_w2,
     D_EthnicityCombined_w2,
+    D_SexIDL_w2,
     qsg,
     D_Edu3Cat_w2,
     D_relstatcatv7_w2,
@@ -166,6 +167,7 @@ wave2_data %>%
     Total,
     D_Age5Cat_w2,
     D_EthnicityCombined_w2,
+    D_SexIDL_w2,
     qsg,
     D_Edu3Cat_w2,
     D_relstatcatv7_w2,
@@ -186,6 +188,7 @@ wave2_data %>%
     Total,
     D_Age5Cat_w2,
     D_EthnicityCombined_w2,
+    D_SexIDL_w2,
     qsg,
     D_Edu3Cat_w2,
     D_relstatcatv7_w2,
