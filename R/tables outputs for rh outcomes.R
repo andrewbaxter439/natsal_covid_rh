@@ -5,8 +5,8 @@ library(gt)
 ungrouo <- ungroup
 
 # D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
-# var_out <- quo(D_ConNoCon_w2)
-# var_exp <- quo(D_Age5Cat_w2)
+# var_out <- quo(D_SwitchTo_w2)
+# var_exp <- quo(D_relstatcatv7_w2)
 # var_exp <- quo(Total)
 
 crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
@@ -116,6 +116,8 @@ crosstab_single_var(Total, D_ConNoCon_w2)
 crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
 crosstab_single_var(qsg, D_ConNoCon_w2)
 crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
+crosstab_single_var(D_relstatcatv7_w2, D_SwitchTo_w2, df = wave2_data %>%
+                      filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))))
 
 crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
   
@@ -161,7 +163,7 @@ wave2_data %>%
   gtsave("Contraception outcomes.html")
 
 wave2_data %>%
-  filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
+  filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))) %>% 
   crosstab_per_outcome(
     D_SwitchTo_w2,
     Total,
