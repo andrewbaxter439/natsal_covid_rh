@@ -149,15 +149,75 @@ pregnancy_rates_joined %>%
   
 # graphs for pregnancy and abortion rates ---------------------------------
   
+
+
+# importing Chlamydia data ------------------------------------------------
+
+
+
+hiv_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
+                          sheet = "HIV_test")
+
+chl_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
+                          sheet = "CT_test")
+
+sti_testing_nat <- tribble(~group, ~gender, ~year, ~outcome, ~perc, ~li, ~ui,
+        "natsal", "Men", 2010, "Chlamydia testing", 0.151, 0.139, 0.163,
+        "natsal", "Men", 2020, "Chlamydia testing", 0.039, 0.030, 0.051,
+        "natsal", "Men", 2010, "HIV testing", 0.060, 0.051, 0.070,
+        "natsal", "Men", 2020, "HIV testing", 0.063, 0.052, 0.076,
+        "natsal", "Women", 2010, "Chlamydia testing", 0.251, 0.237, 0.264,
+        "natsal", "Women", 2020, "Chlamydia testing", 0.069, 0.058, 0.081,
+        "natsal", "Women", 2010, "HIV testing", 0.104, 0.095, 0.114,
+        "natsal", "Women", 2020, "HIV testing", 0.081, 0.070, 0.095 
+)
+
+sti_testing <- hiv_testing %>% 
+  mutate(hiv_test_rate = `rate per 100,000` / 100, .keep = "unused") %>% 
+  select(-number, -population) %>% 
+  left_join(
+    chl_testing %>% 
+      mutate(chl_test_rate = `rate per 100,000` / 100, .keep = "unused") %>% 
+      select(-number, -population)
+  ) %>% 
+  mutate(gender = case_when(
+    gender == "Male" ~ "Men",
+    gender == "Female" ~ "Women",
+  ),
+  group = "surv")
+
 library(patchwork)
 
-surv_graphs <- conceptions_abortions_yearly %>% 
-  mutate(time = year - 2009) %>% 
-  pivot_longer(c(con_rate, abo_rate), names_to = "outcome", values_to = "rate") %>% 
-  mutate(time = year - 2009,
-         outcome = case_when(outcome == "con_rate" ~ "Conceptions", outcome == "abo_rate" ~ "Abortions"),
-         outcome = fct_rev(outcome)) %>% 
-  ggplot(aes(time, rate, colour = outcome)) +
+surv_graphs <- conceptions_abortions_yearly %>%
+  mutate(gender = "Women") %>%
+  full_join(sti_testing, by = c("year", "group", "gender")) %>%
+  select(year,
+         group,
+         gender,
+         con_rate,
+         abo_rate,
+         hiv_test_rate,
+         chl_test_rate) %>%
+  pivot_longer(
+    c(con_rate, abo_rate, hiv_test_rate, chl_test_rate),
+    names_to = "outcome",
+    values_to = "rate"
+  ) %>%
+  filter(year < 2020) %>% 
+  mutate(
+    time = year - 2009,
+    outcome = case_when(
+      outcome == "con_rate" ~ "Conceptions",
+      outcome == "abo_rate" ~ "Abortions",
+      outcome == "hiv_test_rate" ~ "HIV testing",
+      outcome == "chl_test_rate" ~ "Chlamydia testing"
+    ),
+    outcome = fct_relevel(outcome, "Conceptions",
+                          "Abortions",
+                          "HIV testing",
+                          "Chlamydia testing")
+  ) %>% 
+  ggplot(aes(time, rate, colour = outcome, linetype = gender)) +
   geom_point(size = 1) +
   geom_smooth(method = "lm", se = FALSE) +
   scale_y_continuous("Rate per 1,000", limits = c(0, NA)) +
@@ -170,13 +230,19 @@ surv_graphs <- conceptions_abortions_yearly %>%
         plot.tag.position = "left",
         plot.tag = element_text(angle = 90, margin = margin(r = 10))) +
   facet_wrap(~ outcome, nrow = 1, scales = "free_y")
-  
+
+
 natsal_graphs <- bind_rows(natsal_preg, natsal_abo) %>% 
-  mutate(outcome = fct_rev(outcome)) %>% 
+  mutate(gender = "Women") %>% 
+  bind_rows(sti_testing_nat) %>% 
+mutate(outcome = fct_relevel(outcome, "Conceptions",
+                             "Abortions",
+                             "HIV testing",
+                             "Chlamydia testing")) %>% 
   ggplot(aes(year, perc, colour = outcome)) +
   geom_point() +
   geom_pointrange(aes(ymin = li, ymax = ui)) +
-  geom_line() +
+  geom_line(aes(linetype = gender)) +
   scale_y_continuous("Percentage", limits = c(0, NA),
                      labels = scales::percent_format(accuracy = 1)) +
   scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
@@ -188,20 +254,4 @@ natsal_graphs <- bind_rows(natsal_preg, natsal_abo) %>%
         plot.tag = element_text(angle = 90, margin = margin(r = 10))) +
   facet_wrap(~ outcome, nrow = 1, scales = "free_y")
 
-surv_graphs / natsal_graphs
-
-# importing Chlamydia data ------------------------------------------------
-
-
-chlamydia_diag <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/sti_workbook.xlsx",
-  sheet = "England", skip = 56, n_max = 3)
-
-
-sti_testing <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
-        "natsal", 2010, "Chlamydia test", 0.151, 0.139, 0.163,
-        "natsal", 2020, "Chlamydia test", 0.041, 0.032, 0.053,
-        "natsal", 2010, "HIV test", 0.060, 0.051, 0.070,
-        "natsal", 2020, "HIV test", 0.065, 0.054, 0.079 
-)
-
-  
+surv_graphs/natsal_graphs
