@@ -184,9 +184,9 @@ wave2_data %>%
   gtsave("Contraception switching.html")
 
 wave2_data %>%
-  filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
+  filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
   crosstab_per_outcome(
-    D_ServAccComb_w2,
+    D_ConServAcc_w2,
     Total,
     D_Age5Cat_w2,
     D_EthnicityCombined_w2,
