@@ -283,7 +283,7 @@ surv_graphs <- surv_data_tidy %>%
   geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, size = 2) +
   geom_line(linetype = "dashed") +
   scale_y_continuous("Percentage", limits = c(0, NA),
-                     labels = scales::label_number(accuracy = 1), expand = expansion(mult = c(0, 0))) +
+                     labels = scales::label_percent(accuracy = 1, scale = 1), expand = expansion(mult = c(0, 0))) +
   scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
   scale_colour_manual(name = "Gender",
                       values = c(
