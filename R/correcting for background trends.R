@@ -155,17 +155,26 @@ pregnancy_rates_joined %>%
 
 
 
+gum_clinic <-  read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
+                          sheet = "SHC_Consultations")
+
 hiv_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
                           sheet = "HIV_test")
 
 chl_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
                           sheet = "CT_test")
 
+
+
 sti_testing_nat <- tribble(~group, ~gender, ~year, ~outcome, ~perc, ~li, ~ui,
+        "natsal", "Men", 2010, "Clinic attendance", 0.070, 0.062, 0.079,
+        "natsal", "Men", 2020, "Clinic attendance", 0.087, 0.074, 0.103,
         "natsal", "Men", 2010, "Chlamydia testing", 0.151, 0.139, 0.163,
         "natsal", "Men", 2020, "Chlamydia testing", 0.039, 0.030, 0.051,
         "natsal", "Men", 2010, "HIV testing", 0.060, 0.051, 0.070,
         "natsal", "Men", 2020, "HIV testing", 0.063, 0.052, 0.076,
+        "natsal", "Women", 2010, "Clinic attendance", 0.086, 0.078, 0.095,
+        "natsal", "Women", 2020, "Clinic attendance", 0.080, 0.068, 0.093,
         "natsal", "Women", 2010, "Chlamydia testing", 0.251, 0.237, 0.264,
         "natsal", "Women", 2020, "Chlamydia testing", 0.069, 0.058, 0.081,
         "natsal", "Women", 2010, "HIV testing", 0.104, 0.095, 0.114,
@@ -178,6 +187,11 @@ sti_testing <- hiv_testing %>%
   left_join(
     chl_testing %>% 
       mutate(chl_test_rate = `rate per 100,000` / 1000, .keep = "unused") %>% 
+      select(-number, -population)
+  ) %>% 
+  left_join(
+    gum_clinic %>% 
+      mutate(clinic_attendance = `rate per 100,000` / 1000, .keep = "unused") %>% 
       select(-number, -population)
   ) %>% 
   mutate(gender = case_when(
@@ -202,10 +216,11 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
          gender,
          con_rate,
          abo_rate,
+         clinic_attendance,
          hiv_test_rate,
          chl_test_rate) %>%
   pivot_longer(
-    c(con_rate, abo_rate, hiv_test_rate, chl_test_rate),
+    c(con_rate, abo_rate, clinic_attendance, hiv_test_rate, chl_test_rate),
     names_to = "outcome",
     values_to = "rate"
   ) %>%
@@ -216,10 +231,12 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
       outcome == "con_rate" ~ "Conceptions",
       outcome == "abo_rate" ~ "Abortions",
       outcome == "hiv_test_rate" ~ "HIV testing",
-      outcome == "chl_test_rate" ~ "Chlamydia testing"
+      outcome == "chl_test_rate" ~ "Chlamydia testing",
+      outcome == "clinic_attendance" ~ "Clinic attendance"
     ),
     outcome = fct_relevel(outcome, "Conceptions",
                           "Abortions",
+                          "Clinic attendance",
                           "HIV testing",
                           "Chlamydia testing")
   ) %>% 
@@ -228,8 +245,10 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
 natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>% 
   mutate(gender = "Women") %>% 
   bind_rows(sti_testing_nat) %>% 
+  mutate(across(perc:ui, ~.x*100)) %>% 
 mutate(outcome = fct_relevel(outcome, "Conceptions",
                              "Abortions",
+                          "Clinic attendance",
                              "HIV testing",
                              "Chlamydia testing")) 
 
@@ -237,9 +256,7 @@ mutate(outcome = fct_relevel(outcome, "Conceptions",
 
 limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcome", "gender")) %>% 
   group_by(outcome) %>% 
-  mutate(rate_y = ui*100) %>% 
-  summarise(max = max(rate, rate_y, na.rm = TRUE),
-            time = 1)
+  summarise(max = max(rate, ui, na.rm = TRUE)*1.1)
 
 ## making graphs -----------------------------------------------------------
 
@@ -248,8 +265,8 @@ surv_graphs <- surv_data_tidy %>%
   ggplot(aes(time, rate, colour = gender, shape = gender)) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE) +
-  geom_point(data = limit_sets, aes(x = time, y = max), inherit.aes = FALSE, alpha = 0) +
-  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
+  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
+  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0)), labels = scales::label_number(accuracy = 1)) +
   scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
   scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
   scale_shape_discrete(name = "Gender") +
@@ -262,10 +279,10 @@ natsal_graphs <- natsal_data_tidy %>%
   ggplot(aes(year, perc, colour = gender, shape = gender)) +
   geom_point(size = 2) +
   geom_linerange(aes(ymin = li, ymax = ui), size = 1) +
-  geom_point(data = limit_sets, aes(x = time, y = max/100), inherit.aes = FALSE, alpha = 0) +
+  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE) +
   geom_line(linetype = "dashed") +
   scale_y_continuous("Percentage", limits = c(0, NA),
-                     labels = scales::percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.1))) +
+                     labels = scales::label_number(accuracy = 1), expand = expansion(mult = c(0, 0))) +
   scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
   scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
   theme_sphsu_light() +
@@ -279,18 +296,28 @@ surv_graphs + natsal_graphs + plot_layout(guides = "collect")
 # testing significance - move to rmd? -------------------------------------
 
 
-surv_data_tidy %>% 
-  group_by(gender, outcome) %>% 
-  nest() %>% 
-  filter(!(gender == "Men" & outcome %in% c("Conceptions", "Abortions"))) %>% 
-  mutate(coefs = map(data, .f = function(data) {
-    lm(rate ~ time, data = data) %>%
-      broom::tidy(conf.int = TRUE)
-  })) %>% 
-  unnest(coefs) %>% 
-  filter(term == "time") %>% 
-  select(estimate, conf.low, conf.high) %>% 
-  ungroup() %>% 
-  walk(function(data, ...) {
-    cat(glue::glue("{.$gender} saw a yearly change in {.$outcome} of {signif(.$estimate, 3)} per 100 {.$gender} ({signif(.$conf.low, 3)}, {signif(.$conf.high, 3)})\n\n"))
-  })
+surv_data_tidy %>%
+  group_by(gender, outcome) %>%
+  nest() %>%
+  filter(!(gender == "Men" &
+             outcome %in% c("Conceptions", "Abortions"))) %>%
+  mutate(coefs = map(
+    data,
+    .f = function(data) {
+      lm(rate ~ time, data = data) %>%
+        broom::tidy(conf.int = TRUE)
+    }
+  )) %>%
+  unnest(coefs) %>%
+  filter(term == "time") %>%
+  select(estimate, conf.low, conf.high) %>%
+  ungroup() %>%
+  arrange(outcome, gender) %>% 
+  {
+    cat(
+      glue::glue(
+        "{.$gender} saw a yearly change in {.$outcome} of {signif(.$estimate, 3)} per 100 {.$gender} ({signif(.$conf.low, 3)}, {signif(.$conf.high, 3)})"
+      ),
+      sep = "\n"
+    )
+  }
