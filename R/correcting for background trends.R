@@ -173,11 +173,11 @@ sti_testing_nat <- tribble(~group, ~gender, ~year, ~outcome, ~perc, ~li, ~ui,
 )
 
 sti_testing <- hiv_testing %>% 
-  mutate(hiv_test_rate = `rate per 100,000` / 100, .keep = "unused") %>% 
+  mutate(hiv_test_rate = `rate per 100,000` / 1000, .keep = "unused") %>% 
   select(-number, -population) %>% 
   left_join(
     chl_testing %>% 
-      mutate(chl_test_rate = `rate per 100,000` / 100, .keep = "unused") %>% 
+      mutate(chl_test_rate = `rate per 100,000` / 1000, .keep = "unused") %>% 
       select(-number, -population)
   ) %>% 
   mutate(gender = case_when(
@@ -188,8 +188,14 @@ sti_testing <- hiv_testing %>%
 
 library(patchwork)
 
-surv_graphs <- conceptions_abortions_yearly %>%
-  mutate(gender = "Women") %>%
+
+## tidying data ------------------------------------------------------------
+
+
+surv_data_tidy <- conceptions_abortions_yearly %>%
+  mutate(gender = "Women",
+         con_rate = con_rate / 10,
+         abo_rate = abo_rate / 10) %>%
   full_join(sti_testing, by = c("year", "group", "gender")) %>%
   select(year,
          group,
@@ -217,41 +223,74 @@ surv_graphs <- conceptions_abortions_yearly %>%
                           "HIV testing",
                           "Chlamydia testing")
   ) %>% 
-  ggplot(aes(time, rate, colour = outcome, linetype = gender)) +
-  geom_point(size = 1) +
-  geom_smooth(method = "lm", se = FALSE) +
-  scale_y_continuous("Rate per 1,000", limits = c(0, NA)) +
-  scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
-  ggpubr::stat_regline_equation(label.y.npc = 0.75) +
-  scale_colour_sphsu(palette = "cool") +
-  labs(tag = "Surveillance data") +
-  theme_sphsu_light() +
-  theme(legend.position = "none",
-        plot.tag.position = "left",
-        plot.tag = element_text(angle = 90, margin = margin(r = 10))) +
-  facet_wrap(~ outcome, nrow = 1, scales = "free_y")
+  mutate(rate = if_else(outcome == "Chlamydia testing" & year < 2012, na_dbl, rate))
 
-
-natsal_graphs <- bind_rows(natsal_preg, natsal_abo) %>% 
+natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>% 
   mutate(gender = "Women") %>% 
   bind_rows(sti_testing_nat) %>% 
 mutate(outcome = fct_relevel(outcome, "Conceptions",
                              "Abortions",
                              "HIV testing",
-                             "Chlamydia testing")) %>% 
-  ggplot(aes(year, perc, colour = outcome)) +
-  geom_point() +
-  geom_pointrange(aes(ymin = li, ymax = ui)) +
-  geom_line(aes(linetype = gender)) +
-  scale_y_continuous("Percentage", limits = c(0, NA),
-                     labels = scales::percent_format(accuracy = 1)) +
-  scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
-  scale_colour_sphsu(palette = "cool") +
-  theme_sphsu_light() +
-  labs(tag = "Natsal surveys") +
-  theme(legend.position = "none",
-        plot.tag.position = "left",
-        plot.tag = element_text(angle = 90, margin = margin(r = 10))) +
-  facet_wrap(~ outcome, nrow = 1, scales = "free_y")
+                             "Chlamydia testing")) 
 
-surv_graphs/natsal_graphs
+
+
+limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcome", "gender")) %>% 
+  group_by(outcome) %>% 
+  mutate(rate_y = ui*100) %>% 
+  summarise(max = max(rate, rate_y, na.rm = TRUE),
+            time = 1)
+
+## making graphs -----------------------------------------------------------
+
+
+surv_graphs <- surv_data_tidy %>% 
+  ggplot(aes(time, rate, colour = gender, shape = gender)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(data = limit_sets, aes(x = time, y = max), inherit.aes = FALSE, alpha = 0) +
+  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
+  scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
+  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
+  scale_shape_discrete(name = "Gender") +
+  labs(title = "Surveillance data") +
+  theme_sphsu_light() +
+  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+
+
+natsal_graphs <- natsal_data_tidy %>% 
+  ggplot(aes(year, perc, colour = gender, shape = gender)) +
+  geom_point(size = 2) +
+  geom_linerange(aes(ymin = li, ymax = ui), size = 1) +
+  geom_point(data = limit_sets, aes(x = time, y = max/100), inherit.aes = FALSE, alpha = 0) +
+  geom_line(linetype = "dashed") +
+  scale_y_continuous("Percentage", limits = c(0, NA),
+                     labels = scales::percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.1))) +
+  scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
+  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
+  theme_sphsu_light() +
+  theme(legend.position = "none") +
+  labs(title = "Natsal surveys") +
+  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+
+surv_graphs + natsal_graphs + plot_layout(guides = "collect")
+
+
+# testing significance - move to rmd? -------------------------------------
+
+
+surv_data_tidy %>% 
+  group_by(gender, outcome) %>% 
+  nest() %>% 
+  filter(!(gender == "Men" & outcome %in% c("Conceptions", "Abortions"))) %>% 
+  mutate(coefs = map(data, .f = function(data) {
+    lm(rate ~ time, data = data) %>%
+      broom::tidy(conf.int = TRUE)
+  })) %>% 
+  unnest(coefs) %>% 
+  filter(term == "time") %>% 
+  select(estimate, conf.low, conf.high) %>% 
+  ungroup() %>% 
+  walk(function(data, ...) {
+    cat(glue::glue("{.$gender} saw a yearly change in {.$outcome} of {signif(.$estimate, 3)} per 100 {.$gender} ({signif(.$conf.low, 3)}, {signif(.$conf.high, 3)})\n\n"))
+  })
