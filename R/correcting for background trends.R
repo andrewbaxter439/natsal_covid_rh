@@ -272,28 +272,37 @@ surv_graphs <- surv_data_tidy %>%
   scale_shape_discrete(name = "Gender") +
   labs(title = "Surveillance data") +
   theme_sphsu_light() +
+  theme(legend.position = "bottom") +
   facet_wrap(~ outcome, ncol = 1, scales = "free_y")
 
 
-natsal_graphs <- natsal_data_tidy %>% 
+(natsal_graphs <- natsal_data_tidy %>% 
   ggplot(aes(year, perc, colour = gender, shape = gender)) +
   geom_point(size = 2) +
-  geom_linerange(aes(ymin = li, ymax = ui), size = 1) +
-  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE) +
+  geom_linerange(aes(ymin = li, ymax = ui), size = 1, show.legend = FALSE) +
+  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, size = 2) +
   geom_line(linetype = "dashed") +
   scale_y_continuous("Percentage", limits = c(0, NA),
                      labels = scales::label_number(accuracy = 1), expand = expansion(mult = c(0, 0))) +
   scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
-  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
+  scale_colour_manual(name = "Gender",
+                      values = c(
+                        "Men" = sphsu_cols("Thistle", names = FALSE),
+                        "Women" = sphsu_cols("Turquoise", names = FALSE)
+                      ),
+                      guide = guide_legend(override.aes = list(linetype = c(NA,NA), line = c(NA, NA)))) +
   theme_sphsu_light() +
+  scale_shape_discrete("Gender") +
   theme(legend.position = "none") +
   labs(title = "Natsal surveys") +
-  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+  guides(line = guide_legend(override.aes = list(line = c(1,1)))) +
+  facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
 
-surv_graphs + natsal_graphs + plot_layout(guides = "collect")
+(surv_graphs + natsal_graphs) / guide_area()  + plot_layout(guides = "collect", heights = c(10, 1))
 
+ggsave("suveillance_comparison.png", height = 30, width = 24, units = "cm", dpi = 400)
 
-# testing significance - move to rmd? -------------------------------------
+  # testing significance - move to rmd? -------------------------------------
 
 
 surv_data_tidy %>%
