@@ -90,13 +90,15 @@ robust_glm(wave2_data, D_Planned_preg_1yr ~ D_Edu3Cat_w2 + D_Age5Cat_w2, weight2
 
 
 preg_dataset <- wave2_data %>% 
-  select(D_Age5Cat_w2,
-         qsg,
+  select(D_Preg1yr_w2,
+         D_LMUPScore_w2,
+         D_LMUPCat_w2,
+         D_Age5Cat_w2,
          D_EthnicityCombined_w2,
-         D_relstatcatv7_w2,
+         D_SexIDL_w2,
+         qsg,
          D_Edu3Cat_w2,
-         D_Preg1yr_w2,
-         D_LMUPScore_w2, 
+         D_relstatcatv7_w2,
          EconActChg4_w2,
          EconActChg5_w2,
          D_drinkGrp_w2,
@@ -112,6 +114,7 @@ preg_dataset <- wave2_data %>%
 preg_perc <-
   preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
+  mutate(Total = "Total") %>% 
   pivot_longer(- c(Preg_unpl_amb, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
   filter(!is.na(Cat)) %>%
   group_by(Comparison, Cat) %>%
@@ -123,9 +126,9 @@ preg_perc <-
             unpl_p_ul = perc_ci(unpl_p, "u", sum(weight2)),
             ) %>% 
     mutate(`Pregnancy in last year_%` = scales::percent(preg_p, accuracy =  0.1),
-           `Pregnancy in last year_CI` = paste0("(", round(preg_p_ll*100, 1), "%, ", round(preg_p_ul*100, 1), "%)"),
+           `Pregnancy in last year_CI` = paste0("(", round(preg_p_ll*100, 1), ", ", round(preg_p_ul*100, 1), ")"),
            `Unplanned/ambivalent pregnancy_%` = scales::percent(unpl_p, accuracy =  0.1),
-           `Unplanned/ambivalent pregnancy_CI` = paste0("(", round(unpl_p_ll*100, 1), "%, ", round(unpl_p_ul*100, 1), "%)"))
+           `Unplanned/ambivalent pregnancy_CI` = paste0("(", round(unpl_p_ll*100, 1), ", ", round(unpl_p_ul*100, 1), ")"))
   
 unadj_ors <- preg_dataset %>% 
   select(- D_LMUPScore_w2) %>% 
