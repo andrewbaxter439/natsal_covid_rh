@@ -9,7 +9,7 @@ ungrouo <- ungroup
 # var_exp <- quo(D_relstatcatv7_w2)
 # var_exp <- quo(Total)
 
-crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
+crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   
   op <- options(dplyr.summarise.inform=FALSE)
   on.exit(options(op))
@@ -17,9 +17,9 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   var_exp <- enquo(var_exp)
   var_out <- enquo(var_out)
   
-  title <- df %>%
+  rlang::eval_tidy(title <- df %>%
     pull(!!var_exp) %>%
-    attr("label")
+    attr("label"), data = df)
   
 
   tab1 <- df %>%
@@ -112,12 +112,14 @@ crosstab_single_var <- function(var_exp, var_out, df = wave2_data) {
   tabout
 }
 
-crosstab_single_var(Total, D_ConNoCon_w2)
-crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
-crosstab_single_var(qsg, D_ConNoCon_w2)
-crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
-crosstab_single_var(D_relstatcatv7_w2, D_SwitchTo_w2, df = wave2_data %>%
-                      filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))))
+wave2_data %>% crosstab_single_var(Total, D_ConNoCon_w2)
+wave2_data %>% crosstab_single_var(D_Age5Cat_w2, D_ConServFailWhy_w2)
+wave2_data %>% crosstab_single_var(D_Age5Cat_w2, D_ConNoCon_w2) 
+wave2_data %>% crosstab_single_var(qsg, D_ConNoCon_w2)
+wave2_data %>% crosstab_single_var(D_EthnicityCombined_w2, D_ConNoCon_w2)
+wave2_data %>%
+  filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))) %>% 
+  crosstab_single_var(D_relstatcatv7_w2, D_SwitchTo_w2)
 
 crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
   
@@ -127,7 +129,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
     
     vars_exp %>%
       map_dfr(function(exp) {
-        crosstab_single_var(!!exp, !!var_out, df = data)
+        crosstab_single_var(df = data, !!exp, !!var_out)
       }) %>%
       gt(rowname_col = " ", groupname_col = "cat") %>%
       summary_rows(
