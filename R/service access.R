@@ -273,7 +273,7 @@ bind_rows(bind_rows(sh_access, rh_service, rh_why)  %>%
 # with collapsed reasons variable -----------------------------------------
 
 
-wave2_data %>% 
+serv_acc_reasons_tidy <- wave2_data %>% 
     filter(!is.na(D_ConServFailWhy_w2)) %>% 
     group_by(D_ConServFailWhy_w2, D_Age5Cat_w2) %>% 
     # group_by(exposure, outcome) %>%
@@ -289,7 +289,7 @@ wave2_data %>%
       perc = wt / sum(wt),
       ll = perc_ci(perc, n = sum(wt)),
       ul = perc_ci(perc, "u", sum(wt)),
-      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), ""),
       CI = paste0(
         "(",
         sprintf(fmt = "%.1f", round(ll * 100, 1)),
@@ -298,7 +298,34 @@ wave2_data %>%
         ")"
       ),
       `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = " "))
+      # Denominators = paste0("\u200D", round(wt, 0), "," , n)
     ) %>%
     ungroup()
-    select(D_Age5Cat_w2, D_ConServAcc_w2)
-  
+
+serv_acc_tot_row <- serv_acc_reasons_tidy %>% 
+  filter(D_Age5Cat_w2 == "Total") %>% 
+  group_by(D_Age5Cat_w2) %>% 
+  summarise(wt = sum(wt), n = sum(n), .groups = "drop_last") %>% 
+  transmute(Total = paste0("\u200D", round(wt, 0), "," , n),
+            D_ConServFailWhy_w2 = "Denominators (weighted, unweighted)")
+
+
+serv_acc_reasons_tidy %>% 
+  select(D_ConServFailWhy_w2,
+         D_Age5Cat_w2,
+         `%_CI`) %>% 
+  pivot_wider(names_from = D_Age5Cat_w2, values_from = `%_CI`) %>% 
+  bind_rows(serv_acc_tot_row) %>% 
+  gt(rowname_col = "D_ConServFailWhy_w2") %>% 
+  fmt_missing(columns = everything(), missing_text = " ") %>% 
+  gtsave("Service Access barriers.html")
+
+
+wave2_data %>%
+  filter(!is.na(D_ConServFailWhy_w2)) %>%
+  summarise(
+    p = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)["p.value"],
+    xsq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)["Chisq"],
+  )
+
+weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServFailWhy_w2, weight = wave2_data$weight2)
