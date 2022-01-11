@@ -2,6 +2,7 @@ source(file.path(old_wd, "R/import and convert.R"))
 source(file.path(old_wd, "R/functions.R"))
 library(gt)
 library(weights)
+library(SPHSUgraphs)
 
 # old_wd <- setwd(
 #   "T:/projects/National_survey_sexual_attitudes_IV_S00144/09 Natsal Covid/05 Data Analysis/Data Analysis AB/Reproductive health/dat_out"
@@ -266,3 +267,38 @@ bind_rows(bind_rows(sh_access, rh_service, rh_why)  %>%
   ) %>% 
   tab_spanner_delim(delim = "_", split = "first") #%>% 
   gtsave("serv_acc_byage.html")
+
+  
+
+# with collapsed reasons variable -----------------------------------------
+
+
+wave2_data %>% 
+    filter(!is.na(D_ConServFailWhy_w2)) %>% 
+    group_by(D_ConServFailWhy_w2, D_Age5Cat_w2) %>% 
+    # group_by(exposure, outcome) %>%
+    summarise(wt = sum(weight2),
+              n = n(),
+              .groups = "drop_last") %>%
+    group_by(D_ConServFailWhy_w2) %>% 
+    nest() %>% 
+    mutate(data = modify(data, ~ janitor::adorn_totals(.x))) %>% 
+    unnest(data) %>% 
+    group_by(D_Age5Cat_w2) %>% 
+    mutate(
+      perc = wt / sum(wt),
+      ll = perc_ci(perc, n = sum(wt)),
+      ul = perc_ci(perc, "u", sum(wt)),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      CI = paste0(
+        "(",
+        sprintf(fmt = "%.1f", round(ll * 100, 1)),
+        ",\u00A0",
+        sprintf(fmt = "%.1f", round(ul * 100, 1)),
+        ")"
+      ),
+      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = " "))
+    ) %>%
+    ungroup()
+    select(D_Age5Cat_w2, D_ConServAcc_w2)
+  
