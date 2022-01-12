@@ -33,7 +33,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
       perc = wt / sum(wt),
       ll = perc_ci(perc, n = sum(wt)),
       ul = perc_ci(perc, "u", sum(wt)),
-      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1))),
       CI = paste0(
         "(",
         sprintf(fmt = "%.1f", round(ll * 100, 1)),
@@ -61,7 +61,8 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   } else  {
     
   
-  tab2 <- df %>%
+  tab2 <-
+    df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
     filter(!is.na(outcome),!is.na(exposure)) %>%
     summarise(
@@ -72,11 +73,11 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     ) %>%
     transmute(
       cat = title,
-      Total = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3)))),
-      `(Denom.)` = paste0("\u200D(", round(w, 0), "," , n, ")")
+      Total = paste0("\u200D(", round(w, 0), "," , n, ")"),
+      `P-value` = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
     ) %>% 
-    mutate(`  ` = " ",
-           ` ` = " ") %>% 
+      pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted/unweighted)") %>% 
+    mutate(` ` = " ") %>% 
     ungroup()
 
   }
@@ -100,13 +101,14 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     mutate(` ` = " ",
            `  ` = as.character(exposure),
            .keep = "unused",
-           `(Denom.)` = paste0("\u200D(", wt, ",", n, ")"),
-           Total = "100.0%") %>% 
+           `Denominators (weighted/unweighted)` = paste0("\u200D(", wt, ",", n, ")")) %>% 
     left_join(tab1b, by = c("cat", " ", "  ")) %>% 
     bind_rows(tab2) %>%
     mutate(across(.fns = ~ replace_na(.x, " ")),
-           `  ` = if_else(`  ` == "Total", "Distribution of outcomes", `  `)) %>% 
-    select(-Total, -`(Denom.)`, `Total\n(Row)` = Total, `(Denom.)`)
+           cat = ifelse(quo_name(var_exp) == "Total", " ", cat)
+           # `  ` = if_else(`  ` == "Total", " ", `  `)
+           ) %>% 
+    select(-`Denominators (weighted/unweighted)`, `Denominators (weighted/unweighted)`)
     
 
   tabout
