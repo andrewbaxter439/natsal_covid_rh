@@ -338,7 +338,7 @@ library(survey)
 
 svy_df <- svydesign(ids = ~0, weights = ~weight2, data = wave2_data %>% filter(!is.na(D_ConServFailWhy_w2)))
 
-svychisq(~D_ConServFailWhy_w2 + D_Age5Cat_w2, svy_df)
+svychisq(~D_ConServFailWhy_w2 + D_Age5Cat_w2, svy_df, drop.unused.levels = TRUE)
 
 summary(svytable(~D_ConServFailWhy_w2 + D_Age5Cat_w2, svy_df, drop.unused.levels = TRUE))
 pf(0.6789, 8.69, 634.72, lower.tail = FALSE)

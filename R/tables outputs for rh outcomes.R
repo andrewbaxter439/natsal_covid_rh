@@ -72,7 +72,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     summarise(
       w = round(sum(weight2), 0),
       n = n(),
-      p = svychisq(~outcome + exposure, svy_df)$p.value,
+      p = svychisq(~outcome + exposure, svy_df, drop.unused.levels = TRUE)$p.value,
       # p = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["p.value"],
       xsq = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["Chisq"]
     ) %>%
@@ -173,7 +173,8 @@ wave2_data %>%
   gtsave("Contraception outcomes.html")
 
 wave2_data %>%
-  filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))) %>% 
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         as.numeric(D_ConPre_w2) != 3) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   crosstab_per_outcome(
     D_SwitchTo_w2,
