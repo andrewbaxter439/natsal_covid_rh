@@ -25,7 +25,8 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   
   df <- df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
-    filter(!is.na(outcome), !is.na(exposure))
+    filter(!is.na(outcome), !is.na(exposure)) %>% 
+  mutate(across(c(outcome, exposure), .fns = ~fct_drop(.x)))
   
   svy_df <- svydesign(id = ~NatSal_serial_A, weights = ~weight2, data = df)
   
@@ -151,6 +152,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
 
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   crosstab_per_outcome(
     D_ConNoCon_w2,
     Total,
@@ -172,6 +174,7 @@ wave2_data %>%
 
 wave2_data %>%
   filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   crosstab_per_outcome(
     D_SwitchTo_w2,
     Total,
@@ -193,6 +196,7 @@ wave2_data %>%
 
 wave2_data %>%
   filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   crosstab_per_outcome(
     D_ConServAcc_w2,
     Total,
