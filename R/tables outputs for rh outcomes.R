@@ -1,6 +1,7 @@
 source(file.path(old_wd, "R/import and convert.R"))
 source(file.path(old_wd, "R/functions.R"))
 library(gt)
+library(survey)
 
 ungrouo <- ungroup
 
@@ -21,10 +22,14 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     pull(!!var_exp) %>%
     attr("label"), data = df)
   
-
-  tab1 <- df %>%
+  
+  df <- df %>%
     rename(exposure = !!var_exp, outcome = !!var_out) %>%
-    filter(!is.na(outcome), !is.na(exposure)) %>%
+    filter(!is.na(outcome), !is.na(exposure))
+  
+  svy_df <- svydesign(id = ~NatSal_serial_A, weights = ~weight2, data = df)
+  
+  tab1 <- df  %>%
     group_by(exposure, outcome) %>%
     summarise(wt = sum(weight2),
               n = n()) %>%
@@ -63,12 +68,11 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   
   tab2 <-
     df %>%
-    rename(exposure = !!var_exp, outcome = !!var_out) %>%
-    filter(!is.na(outcome),!is.na(exposure)) %>%
     summarise(
       w = round(sum(weight2), 0),
       n = n(),
-      p = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["p.value"],
+      p = svychisq(~outcome + exposure, svy_df)$p.value,
+      # p = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["p.value"],
       xsq = weights::wtd.chi.sq(outcome, exposure, weight = weight2)["Chisq"]
     ) %>%
     transmute(

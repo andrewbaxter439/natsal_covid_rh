@@ -329,3 +329,16 @@ wave2_data %>%
   )
 
 weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServFailWhy_w2, weight = wave2_data$weight2)
+
+
+
+# better weights ----------------------------------------------------------
+
+library(survey)
+
+svy_df <- svydesign(id = ~NatSal_serial_A, weights = ~weight2, data = wave2_data)
+
+svychisq(~D_ConServFailWhy_w2 + D_Age5Cat_w2, svy_df)$p.value
+svychisq(~D_ConServAcc_w2 + D_Age5Cat_w2, svy_df)$p.value
+
+summary(svytable(~D_ConServFailWhy_w2 + D_Age5Cat_w2, svy_df), statistic = "Chisq")

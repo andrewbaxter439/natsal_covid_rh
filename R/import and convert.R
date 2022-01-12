@@ -21,4 +21,5 @@ library(haven)
   # }
 
 wave2_data <- wave2_data_import %>%
-  mutate(across(where(is.labelled), as_factor))
+  mutate(across(where(is.labelled), as_factor),
+         D_Age5Cat_w2 = fct_drop(D_Age5Cat_w2))
