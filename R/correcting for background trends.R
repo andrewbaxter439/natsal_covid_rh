@@ -234,23 +234,31 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
       outcome == "chl_test_rate" ~ "Chlamydia testing",
       outcome == "clinic_attendance" ~ "Clinic attendance"
     ),
-    outcome = fct_relevel(outcome, "Conceptions",
-                          "Abortions",
-                          "Clinic attendance",
-                          "HIV testing",
-                          "Chlamydia testing")
+    outcome = fct_relevel(
+      outcome,
+      "Clinic attendance",
+      "Chlamydia testing",
+      "HIV testing",
+      "Conceptions",
+      "Abortions"
+    )
   ) %>% 
-  mutate(rate = if_else(outcome == "Chlamydia testing" & year < 2012, na_dbl, rate))
+  mutate(rate = if_else(outcome == "Chlamydia testing" & year < 2012, NA_real_, rate))
 
-natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>% 
-  mutate(gender = "Women") %>% 
-  bind_rows(sti_testing_nat) %>% 
-  mutate(across(perc:ui, ~.x*100)) %>% 
-mutate(outcome = fct_relevel(outcome, "Conceptions",
-                             "Abortions",
-                          "Clinic attendance",
-                             "HIV testing",
-                             "Chlamydia testing")) 
+natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>%
+  mutate(gender = "Women") %>%
+  bind_rows(sti_testing_nat) %>%
+  mutate(across(perc:ui, ~ .x * 100)) %>%
+  mutate(
+    outcome = fct_relevel(
+      outcome,
+      "Clinic attendance",
+      "Chlamydia testing",
+      "HIV testing",
+      "Conceptions",
+      "Abortions"
+    )
+  ) 
 
 
 
