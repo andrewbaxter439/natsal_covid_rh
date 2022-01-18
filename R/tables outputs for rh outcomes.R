@@ -150,6 +150,9 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
 }
 
 
+# outputs -----------------------------------------------------------------
+
+
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 

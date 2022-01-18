@@ -397,6 +397,30 @@ robust_glm <- function(df, formula, weights) {
   )
 }
 
+robust_lm <- function(df, formula, weights) {
+  require(rlang)
+  require(sandwich)
+  
+  mod <-
+    eval_tidy(quo(lm(
+      formula,
+      data = df,
+      weights = !!substitute(weights)
+    )))
+    
+  se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+  
+  tibble::tibble(
+    coef = names(coef(mod)),
+    est = coef(mod),
+    se_robust = se,
+    z = est / se,
+    p = 2 * pnorm(abs(z), lower.tail = FALSE),
+    ll = est - 1.96 * se,
+    ul = est + 1.96 * se
+  )
+}
+
 
 return_ORs <- function(df, formula, weights) {
   
@@ -428,8 +452,8 @@ return_ORs <- function(df, formula, weights) {
     !str_detect(coef, "(Intercept|D_Age)")
   ) %>% 
     mutate(Cat = str_extract(coef, paste0("(", paste(cats, collapse = "|"),")"))) %>% 
-    mutate(aOR = round(exp(est), 2),
-           CI = paste0("(", round(exp(ll), 2), ", ", round(exp(ul), 2), ")"),
+    mutate(aOR = sprintf("%.2f", round(exp(est), 2)),
+           CI = paste0("(", sprintf("%.2f", round(exp(ll), 2)), ", ", sprintf("%.2f", round(exp(ul), 2)), ")"),
            P = case_when(
              p < 0.001 ~  "<0.001",
              TRUE ~ as.character(round(p, 3))
