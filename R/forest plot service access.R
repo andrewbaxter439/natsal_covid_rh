@@ -79,6 +79,7 @@ serv_acc_disp <- comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
   bind_rows(serv_acc_ors) %>% 
+  mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          show = if_else(is.na(OR), 0, 1),
@@ -102,8 +103,8 @@ serv_barr_ors <- serv_acc_data %>%
          ),
          CI = case_when(
            est == 1 ~ "(ref)",
-           aOR == "0" ~ "(no observations)",
-           TRUE ~ aOR
+           aOR == "0" ~ "(empty set)",
+           TRUE ~ CI
          ),
          # aOR = if_else(est == 1, "1", aOR),
          # CI = if_else(est == 1, "(ref)", CI)
@@ -116,6 +117,7 @@ serv_barr_disp <- comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
   bind_rows(serv_barr_ors) %>% 
+  mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          empty = if_else(aOR == "0", NA_character_, "black"),
@@ -125,10 +127,10 @@ serv_barr_disp <- comp_labels %>%
 
 
 # this is tricky - doing by gplot -----------------------------------------
-data = serv_barr_disp
+# data = serv_barr_disp
 
-draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful use of Contraceptive Services") {
-    forest1 <- data %>%
+# draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful use of Contraceptive Services") {
+    forest1 <- serv_acc_disp %>%
       # filter(Coefficient == coefficient) %>%
       ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
       geom_vline(xintercept = 1,
@@ -157,9 +159,41 @@ draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful us
         plot.title = element_text(size = 10),
         strip.placement = "outside"
       ) +
-      ggtitle(" \n ") 
+      ggtitle(paste0("\n", "Successful use of Contraceptive Services"))
     
-    base_plot <- data %>%
+
+forest2 <- serv_barr_disp %>%
+      # filter(Coefficient == coefficient) %>%
+      ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
+      geom_vline(xintercept = 1,
+                 colour = "darkgrey",
+                 size = 1) +
+      geom_point(aes(fill = empty), shape = 23, size = 2) +
+      scale_fill_identity() +
+      geom_linerange(aes(xmin = ll, xmax = ul)) +
+      facet_grid(Comparison ~ .,
+                 scales = "free",
+                 space = "free_y",
+                 switch = "y") +
+        scale_x_log10("Odds ratio") +
+  scale_alpha_identity() +
+      theme(
+        strip.text = element_blank(),
+        # panel.spacing.y = unit(1, "cm"),
+        plot.margin = margin(l = 0, r = 0),
+        panel.grid.major.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_blank(),
+        strip.background.y = element_blank(),
+        plot.title = element_text(size = 10),
+        strip.placement = "outside"
+      ) +
+      ggtitle(paste0("\n", "Barriers accessing Contraceptive Services"))
+    
+    base_plot <- serv_acc_disp %>%
       # filter(Coefficient == coefficient) %>%
       ggplot(aes(x = 0, y = fct_rev(Cat))) +
       ylab(NULL) +
@@ -196,8 +230,8 @@ draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful us
                 fontface = if_else(data$show == 0, "bold", "plain"),
                 hjust = 0,
                 size = pts(9)) +
+      ggtitle(" \n ") 
       # xlim(0, 2) +
-      ggtitle(paste0("\n", plot_title))
     
     
     lab2 <- base_plot +
@@ -206,29 +240,37 @@ draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful us
                 size = pts(9)) +
       ggtitle("\nOR (CI)")
     
-
-    lab1_grob <- ggplotGrob(lab1)
-    for (i in 1:length(lab1_grob$layout$clip)) {
-      lab1_grob$layout$clip <- "off"
-    }
     
-    grid.arrange(lab1, forest1, lab2, layout_matrix = 
+    lab3 <- base_plot +
+      geom_text(data = serv_barr_disp, aes(label = paste(aOR, CI)),
+                hjust = 0,
+                size = pts(9)) +
+      ggtitle("\nOR (CI)")
+    # 
+    # 
+    # lab1_grob <- ggplotGrob(lab1)
+    # for (i in 1:length(lab1_grob$layout$clip)) {
+    #   lab1_grob$layout$clip <- "off"
+    # }
+    
+    grid.arrange(lab1, forest1, lab2, forest2, lab3, layout_matrix = 
                    matrix(c(
                      1,1,1,1,1,1,1,
                      2,2,2,2,2,2,
-                     3,3,3,3
-                   ), nrow = 1))
+                     3,3,3,
+                     4,4,4,4,4,4,
+                     5,5,5
+                   ), nrow = 1)) %>% 
+ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 330, units = "mm")
     
     
-  }
+  #}
 
-access_gr <- draw_forest_table(serv_acc_disp)
-barr_gr <- draw_forest_table(serv_barr_disp, plot_title = "Barriers accessing Contraceptive Services")
+# access_gr <- draw_forest_table(serv_acc_disp)
+# barr_gr <- draw_forest_table(serv_barr_disp, plot_title = "Barriers accessing Contraceptive Services")
 
-library(patchwork)
 
-ggplot_build(access_gr)
-access_gr + barr_gr
 
-grid.arrange(access_gr, barr_gr, layout_matrix = matrix(c(1,2), nrow = 1)) %>% 
-ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 400, units = "mm")
+# grid.arrange(access_gr, barr_gr, left = -10, layout_matrix = matrix(c(1,2), nrow = 1)) 
+
+#%>% 
