@@ -128,16 +128,20 @@ wave2_data %>%
   filter(!(as.numeric(D_ConNoCon_w2) %in% c(1,4))) %>% 
   crosstab_single_var(D_relstatcatv7_w2, D_SwitchTo_w2)
 
-crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
+crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
   
     var_out <- rlang::enquo(outcome)
     rlang::eval_tidy(var_out, data = data)
     vars_exp <- rlang::enquos(...)
     
-    vars_exp %>%
+    df <- vars_exp %>%
       map_dfr(function(exp) {
         crosstab_single_var(df = data, !!exp, !!var_out)
-      }) %>%
+      })
+    
+    if(.gt) {
+      
+    df %>%
       gt(rowname_col = " ", groupname_col = "cat") %>%
       summary_rows(
         fns = list(" "  = ~ " "),
@@ -146,6 +150,10 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ...) {
         missing_text = " "
       ) %>%
       tab_spanner_delim(delim = "_", split = "first")
+      
+    } else {
+      df
+    }
   
 }
 
