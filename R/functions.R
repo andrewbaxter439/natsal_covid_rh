@@ -397,7 +397,7 @@ robust_glm <- function(df, formula, weights) {
   )
 }
 
-robust_lm <- function(df, formula, weights) {
+robust_lm <- function(df, formula, weights, verbose = FALSE) {
   require(rlang)
   require(sandwich)
   
@@ -409,6 +409,10 @@ robust_lm <- function(df, formula, weights) {
     )))
     
   se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+  
+  if(verbose) {
+    print(summary(mod))
+  }
   
   tibble::tibble(
     coef = names(coef(mod)),
@@ -462,7 +466,7 @@ return_ORs <- function(df, formula, weights) {
   
 }
 
-perc_ci <- function(perc, lim = "l", n) {
+perc_ci <- function(perc, lim = "l", n = n()) {
   p_t <- log(perc/(1-perc))
   se <-  sqrt(perc*(1-perc)*(1/n))
   

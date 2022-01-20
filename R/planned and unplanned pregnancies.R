@@ -317,7 +317,9 @@ preg_dataset <- wave2_data %>%
     D_Preg1yr_w2 == "No" ~ NA_integer_,
     D_LMUPCat_w2 == "Unplanned" ~ 1L,
     TRUE ~ 0L
-  ))
+  ),
+  D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+  SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2))
 
 
 # experiement with survey package -----------------------------------------
@@ -363,7 +365,7 @@ View(mod_svy)
 
 # putting all together ----------------------------------------------------
 
-
+## percentages in each outcome ----------------
 
 all_preg_perc <- preg_dataset %>% 
   select(- D_LMUPScore_w2, -D_LMUPCat_w2) %>% 
@@ -383,25 +385,35 @@ all_preg_perc <- preg_dataset %>%
 
 # does stata use weighted n obvs in calculating se??
 
-unpl_preg_perc <-
-  preg_dataset %>% 
-  select(- D_LMUPScore_w2, -D_LMUPCat_w2) %>% 
-  filter(!is.na(Preg_unpl)) %>% 
-  pivot_longer(- c(Preg_unpl, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+unpl_preg_perc <-  preg_dataset %>%
+  select(-D_LMUPScore_w2,-D_LMUPCat_w2) %>%
+  filter(!is.na(Preg_unpl)) %>%
+  pivot_longer(-c(Preg_unpl, D_Preg1yr_w2, weight2),
+               names_to = "Comparison",
+               values_to = "Cat") %>%
   filter(!is.na(Cat)) %>%
-  filter(Comparison == "D_SexIDL_w2") %>%
-  # group_by(Comparison) %>% 
-  # mutate(n = sum(weight2)) %>% 
+  # filter(Comparison == "D_SexIDL_w2") %>%
+  # group_by(Comparison) %>%
+  # mutate(n = sum(weight2)) %>%
   group_by(Comparison, Cat) %>%
-  summarise(unpl_p = sum(weight2[Preg_unpl == 1], na.rm = TRUE)/sum(weight2),
-            # n = n(),
-            # wt = sum(weight2),
-            # se = sqrt(unpl_p*(1-unpl_p)*(1/sum(weight2))),
-            unpl_p_ll = perc_ci(unpl_p, "l", n()),
-            unpl_p_ul = perc_ci(unpl_p, "u", n())) %>%
-  mutate(`Unplanned pregnancy_%` = sprintf("%.1f", unpl_p*100),
-         `Unplanned pregnancy_CI` = paste0("(", sprintf("%.1f",round(unpl_p_ll*100, 1)), ", ", sprintf("%.1f", round(unpl_p_ul*100, 1)), ")"))
-
+  summarise(
+    unpl_p = sum(weight2[Preg_unpl == 1]) / sum(weight2),
+    # n = n(),
+    # wt = sum(weight2),
+    # se = sqrt(unpl_p*(1-unpl_p)*(1/n())),
+    # lt = log(unpl_p/(1-unpl_p)) - qt(0.975, n)*se/(unpl_p*(1-unpl_p)),
+    # unpl_p_ll = exp(lt)/(1+exp(lt)),
+    unpl_p_ll = perc_ci(unpl_p, "l", n()),
+    unpl_p_ul = perc_ci(unpl_p, "u", n())
+  ) %>%
+  mutate(
+    `Unplanned pregnancy_%` = sprintf("%.1f", unpl_p * 100),
+    `Unplanned pregnancy_CI` = paste0("(",
+                                      sprintf("%.1f", round(unpl_p_ll * 100, 1)),
+                                      ", ",
+                                      sprintf("%.1f", round(unpl_p_ul * 100, 1)),
+                                      ")")
+  )
 
 # odds of planned (from all - adjusted)
 
@@ -461,7 +473,13 @@ unadj_lin <- preg_dataset %>%
   nest() %>% 
   mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat, weight2))) %>% 
   unnest(mod) %>% 
-  mutate(CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"))
+  mutate(est = sprintf("%.2f", round(est, 2)), 
+         CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
+         coef = str_remove(coef, "^Cat"),
+         P = case_when(
+           p < 0.001 ~  "<0.001",
+           TRUE ~ as.character(round(p, 3))
+         ))
 
 adj_lin <- preg_dataset %>% 
   filter(!is.na(Preg_unpl)) %>% 
@@ -472,8 +490,13 @@ adj_lin <- preg_dataset %>%
   nest() %>% 
   mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   unnest(mod) %>% 
-  mutate(adj_est = est, est = NULL,
-         CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"))
+  mutate(adj_est = sprintf("%.2f", round(est, 2)), est = NULL,
+         CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
+         coef = str_remove(coef, "^Cat"),
+         P = case_when(
+           p < 0.001 ~  "<0.001",
+           TRUE ~ as.character(round(p, 3))
+         ))
 
 
 
@@ -732,11 +755,10 @@ all_preg_perc %>%
         Cat = coef,
         `Unplanned pregnancy score_Coefficient` = adj_est,
         `Unplanned pregnancy score_CI` = CI,
-        `Unplanned pregnancy score_p-value` = p
+        `Unplanned pregnancy score_p-value` = P
       ),
     by = c("Comparison", "Cat")
   ) %>% 
-  View() # At the moment the Cat labels aren't lining up as it's added 'Cat' to them all!!!!!
   left_join(comp_labels, by = "Comparison") %>%
   ungroup() %>%
   filter(!is.na(Cat)) %>% 
