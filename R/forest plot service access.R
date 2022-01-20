@@ -82,6 +82,7 @@ serv_acc_disp <- comp_labels %>%
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          show = if_else(is.na(OR), 0, 1),
+         empty = if_else(aOR == "0", NA_character_, "black"),
          across(where(is.numeric), ~if_else(is.na(OR)&is.na(.x), 1, .x)),
          Cat = fct_inorder(Cat))
 
@@ -91,11 +92,22 @@ serv_barr_ors <- serv_acc_data %>%
   nest(-Comparison) %>% 
   mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat, weight2))) %>% 
   unnest(mod_serv_barr) %>% 
-  mutate(ll = exp(ll),
-         ul = exp(ul),
-         OR = if_else(est == 1, 1, exp(est)),
-         aOR = if_else(est == 1, "1", aOR),
-         CI = if_else(est == 1, "(ref)", CI)) %>% 
+  mutate(ll = if_else(ll<(-10), 1, exp(ll)),
+         ul = if_else(ul<(-10), 1, exp(ul)),
+         OR = if_else(est == 1 | est < -10, 1, exp(est)),
+         aOR = case_when(
+           est == 1 ~ "1",
+           aOR == "0.00" ~ "0",
+           TRUE ~ aOR
+         ),
+         CI = case_when(
+           est == 1 ~ "(ref)",
+           aOR == "0" ~ "(no observations)",
+           TRUE ~ aOR
+         ),
+         # aOR = if_else(est == 1, "1", aOR),
+         # CI = if_else(est == 1, "(ref)", CI)
+         ) %>% 
   select(Comparison, Cat, OR, ll, ul, CI, aOR, P) 
 
 
@@ -106,13 +118,14 @@ serv_barr_disp <- comp_labels %>%
   bind_rows(serv_barr_ors) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
+         empty = if_else(aOR == "0", NA_character_, "black"),
          show = if_else(is.na(OR), 0, 1),
          across(where(is.numeric), ~if_else(is.na(OR)&is.na(.x), 1, .x)),
          Cat = fct_inorder(Cat))
 
 
 # this is tricky - doing by gplot -----------------------------------------
-
+data = serv_barr_disp
 
 draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful use of Contraceptive Services") {
     forest1 <- data %>%
@@ -121,7 +134,8 @@ draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful us
       geom_vline(xintercept = 1,
                  colour = "darkgrey",
                  size = 1) +
-      geom_point(size = 3, shape = 'diamond') +
+      geom_point(aes(fill = empty), shape = 23, size = 2) +
+      scale_fill_identity() +
       geom_linerange(aes(xmin = ll, xmax = ul)) +
       facet_grid(Comparison ~ .,
                  scales = "free",
@@ -208,5 +222,13 @@ draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful us
     
   }
 
-draw_forest_table(serv_acc_disp)
-draw_forest_table(serv_barr_disp, plot_title = "Barriers accessing Contraceptive Services")
+access_gr <- draw_forest_table(serv_acc_disp)
+barr_gr <- draw_forest_table(serv_barr_disp, plot_title = "Barriers accessing Contraceptive Services")
+
+library(patchwork)
+
+ggplot_build(access_gr)
+access_gr + barr_gr
+
+grid.arrange(access_gr, barr_gr, layout_matrix = matrix(c(1,2), nrow = 1)) %>% 
+ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 400, units = "mm")
