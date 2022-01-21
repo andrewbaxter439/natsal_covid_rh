@@ -17,7 +17,8 @@ names_rep <- names(conceptions2019workbook) %>%
   pull(full_names)
 
 
-conceptions_abortions_yearly <- conceptions2019workbook %>% 
+conceptions_abortions_yearly <-
+  conceptions2019workbook %>% 
   `names<-`(names_rep) %>% 
   mutate(Year = as.numeric(str_extract(`Year of conception`, "^\\d{4}")), .keep = "unused") %>%
   filter(!is.na(Year)) %>% 
@@ -33,8 +34,10 @@ conceptions_abortions_yearly <- conceptions2019workbook %>%
          abo_n = if_else(age == "Under 20", abo_n - lag(abo_n) - lag(abo_n, 2), abo_n),
          group = "surv"
          ) %>% 
-  filter(str_detect(age, "^\\d{2}")) %>% 
+  filter(str_detect(age, "(Under 20|^\\d{2})")) %>% 
   group_by(year, group) %>% 
+  # summarise(rate = max(rate) - min(rate), abo_n = max(abo_n) - min(abo_n), pop = max(pop) - min(pop), number = max(number) - min(number)) %>% 
+  #   mutate(con_rate = 1000*number/pop)
   summarise(con_rate = weighted.mean(1000*number_corr/pop, w = pop),
             uncorr_rate = weighted.mean(rate, w = pop),
             abo_rate = weighted.mean(1000*abo_n/pop, w = pop),
@@ -155,13 +158,14 @@ pregnancy_rates_joined %>%
 
 
 
-gum_clinic <-  read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
-                          sheet = "SHC_Consultations")
+gum_clinic <-  read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
+                          sheet = "STI-related_consultations")
+                          # sheet = "SHC_Consultations")
 
-hiv_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
+hiv_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
                           sheet = "HIV_test")
 
-chl_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates.xlsx", 
+chl_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
                           sheet = "CT_test")
 
 
@@ -224,7 +228,7 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
     names_to = "outcome",
     values_to = "rate"
   ) %>%
-  filter(year < 2020) %>% 
+  # filter(year < 2020) %>% 
   mutate(
     time = year - 2009,
     outcome = case_when(
@@ -270,6 +274,7 @@ limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcom
 
 
 surv_graphs <- surv_data_tidy %>% 
+  filter(year < 2020) %>% 
   ggplot(aes(time, rate, colour = gender, shape = gender)) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE) +
@@ -280,7 +285,10 @@ surv_graphs <- surv_data_tidy %>%
   scale_shape_discrete(name = "Gender") +
   labs(title = "Surveillance data") +
   theme_sphsu_light() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        strip.background = element_rect(fill = "white", size = 1),
+        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
+        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
   facet_wrap(~ outcome, ncol = 1, scales = "free_y")
 
 
@@ -301,7 +309,10 @@ surv_graphs <- surv_data_tidy %>%
                       guide = guide_legend(override.aes = list(linetype = c(NA,NA), line = c(NA, NA)))) +
   theme_sphsu_light() +
   scale_shape_discrete("Gender") +
-  theme(legend.position = "none") +
+  theme(legend.position = "none",
+        strip.background = element_rect(fill = "white", size = 1),
+        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
+        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
   labs(title = "Natsal surveys") +
   guides(line = guide_legend(override.aes = list(line = c(1,1)))) +
   facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
@@ -314,6 +325,7 @@ ggsave("suveillance_comparison.png", height = 30, width = 24, units = "cm", dpi 
 
 
 surv_data_tidy %>%
+  mutate(covid = if_else(year == 2020, 1, 0)) %>% 
   group_by(gender, outcome) %>%
   nest() %>%
   filter(!(gender == "Men" &
@@ -321,19 +333,30 @@ surv_data_tidy %>%
   mutate(coefs = map(
     data,
     .f = function(data) {
-      lm(rate ~ time, data = data) %>%
+      lm(rate ~ time + covid, data = data) %>%
         broom::tidy(conf.int = TRUE)
     }
   )) %>%
   unnest(coefs) %>%
-  filter(term == "time") %>%
-  select(estimate, conf.low, conf.high) %>%
+  filter(term !="(Intercept)") %>%
+  select(estimate, term, conf.low, conf.high) %>%
   ungroup() %>%
-  arrange(outcome, gender) %>% 
+  pivot_wider(names_from = term, values_from = c(estimate, conf.low, conf.high),
+              names_glue = "{term}_{.value}") %>% 
+  arrange(outcome, gender) %T>% 
   {
     cat(
       glue::glue(
-        "{.$gender} saw a yearly change in {.$outcome} of {signif(.$estimate, 3)} per 100 {.$gender} ({signif(.$conf.low, 3)}, {signif(.$conf.high, 3)})"
+        "{.$gender} saw a yearly change in {.$outcome} of {signif(.$time_estimate, 3)} per 100 {.$gender} ({signif(.$time_conf.low, 3)}, {signif(.$time_conf.high, 3)})"
+      ),
+      sep = "\n"
+    )
+  } %>% 
+  filter(!is.na(covid_estimate)) %>% 
+  {
+    cat(
+      glue::glue(
+        "In 2020, {.$gender} saw a change in {.$outcome} of {signif(.$covid_estimate, 3)} per 100 {.$gender} ({signif(.$covid_conf.low, 3)}, {signif(.$covid_conf.high, 3)})"
       ),
       sep = "\n"
     )
