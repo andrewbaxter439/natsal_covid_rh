@@ -327,6 +327,7 @@ ggsave("suveillance_comparison.png", height = 30, width = 24, units = "cm", dpi 
 surv_data_tidy %>%
   mutate(covid = if_else(year == 2020, 1, 0)) %>% 
   group_by(gender, outcome) %>%
+  filter(!is.na(rate)) %>% 
   nest() %>%
   filter(!(gender == "Men" &
              outcome %in% c("Conceptions", "Abortions"))) %>%
@@ -338,8 +339,9 @@ surv_data_tidy %>%
     }
   )) %>%
   unnest(coefs) %>%
+  mutate(minyear = map_dbl(data, ~min(.x$year))) %>% 
   filter(term !="(Intercept)") %>%
-  select(estimate, term, conf.low, conf.high) %>%
+  select(estimate, term, conf.low, conf.high, minyear) %>%
   ungroup() %>%
   pivot_wider(names_from = term, values_from = c(estimate, conf.low, conf.high),
               names_glue = "{term}_{.value}") %>% 
@@ -347,7 +349,7 @@ surv_data_tidy %>%
   {
     cat(
       glue::glue(
-        "{.$gender} saw a yearly change in {.$outcome} of {signif(.$time_estimate, 3)} per 100 {.$gender} ({signif(.$time_conf.low, 3)}, {signif(.$time_conf.high, 3)})"
+        "From {.$minyear} to 2019, {.$gender} saw a yearly change in {.$outcome} of {signif(.$time_estimate, 3)} per 100 {.$gender} ({signif(.$time_conf.low, 3)}, {signif(.$time_conf.high, 3)})"
       ),
       sep = "\n"
     )
