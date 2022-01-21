@@ -323,14 +323,23 @@ serv_acc_reasons_tidy %>%
 
 library(janitor)
 
-  # wave2_data %>% 
-  # group_by(D_Age5Cat_w2, D_ConServFailWhy_w2) %>% 
-  # summarise(wt = sum(weight2)) %>% 
-serv_acc_reasons_tidy %>%
+vals <- wave2_data %>% 
+  filter(!is.na(D_ConServFailWhy_w2)) %>% 
+  summarise(n = n(),
+            wt = sum(weight2),
+            chisq = wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[1],
+            p = wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[3]) %>% 
+  unclass
+
+label <- glue::glue("Denominators (weighted, unweighted): {round(vals$wt, 0)}, {vals$n}<br>
+           X^2 = {round(vals$chisq, 2)}<br>
+           p-value = {round(vals$p, 3)}")
+
+serv_acc_gg <- serv_acc_reasons_tidy %>%
   group_by(D_ConServFailWhy_w2) %>% 
   nest() %>% 
   mutate(data = map(data, ~adorn_totals(.x))) %>% 
-  unnest() %>% 
+  unnest(data) %>% 
   ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServFailWhy_w2))) +
   geom_col(position = "fill", width = 0.5) +
   scale_fill_sphsu(name = str_wrap("Reasons for not being able to access contraceptive services", 50)) +
@@ -342,7 +351,24 @@ serv_acc_reasons_tidy %>%
         axis.ticks.x = element_blank()) +
   scale_x_discrete("Age group")
 
-ggsave(file.path(old_wd, "graphs/service access reasons.png"), last_plot(), width = 350, height = 200, units = "mm", dpi = 400)
+g <- ggplotGrob(serv_acc_gg)
+
+
+# leg2 <- gtable::gtable_add_grob(g$grob[[15]], textGrob(label, gp = gpar(fontsize = 10)), 5, 3)
+g$grob[[15]]$heights[[5]] <- unit(40, "mm")
+
+g$grobs[[15]] <- gtable::gtable_add_grob(g$grob[[15]], gridtext::richtext_grob(label, gp = gpar(fontsize = 10),
+                                                                               x = unit(0.1, "npc"),
+                                                                               y = unit(0, "npc"),
+                                                                               vjust = -1, hjust = 0), 5, 3)
+
+
+
+  png(file.path(old_wd, "graphs/service access reasons.png"), width = 350, height = 200, units = "mm", res = 400)
+grid.draw(g)
+dev.off()
+  
+ggsave(file.path(old_wd, "graphs/service access reasons.png"), ., width = 350, height = 200, units = "mm", dpi = 400)
 
 wave2_data %>%
   filter(!is.na(D_ConServFailWhy_w2)) %>%
@@ -351,10 +377,16 @@ wave2_data %>%
     xsq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)["Chisq"],
   )
 
-weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServFailWhy_w2, weight = wave2_data$weight2)
+data.frame(weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServFailWhy_w2, weight = wave2_data$weight2)) %>% 
+  t()
 
 
 # serivice access by age --------------------------------------------------
+
+chi_res <- weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServAcc_w2, weight = wave2_data$weight2)
+wave2_data %>% filter(!is.na(D_ConServAcc_w2)) %>% summarise(s = sum(weight2)) %>% pull(s)
+glue::glue("{wave2_data %>% filter(!is.na(D_ConServAcc_w2)) %>% sum(.$weight2)}")
+
 
 wave2_data %>% 
   select(D_ConServAcc_w2, D_Age5Cat_w2, weight2) %>% 
@@ -366,7 +398,7 @@ wave2_data %>%
   ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServAcc_w2))) +
   # stat_sum(geom = "col", position = "fill", width = 0.5) +
   geom_col(position = "fill", width = 0.5) +
-  scale_fill_sphsu(name = str_wrap("Reasons for not being able to access contraceptive services", 50)) +
+  scale_fill_sphsu(name = str_wrap("Success or barriers accessing contraception services", 50)) +
   theme_sphsu_light() +
   scale_y_continuous("Weighted prevalence", 
                      expand = expansion(0),
