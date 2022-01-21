@@ -32,6 +32,7 @@ comp_labels <- tibble(
 
 
 serv_acc_data <- wave2_data %>%
+  filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
   filter(!is.na(D_ConServAcc_w2)) %>%
   mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   select(
@@ -53,25 +54,29 @@ serv_acc_data <- wave2_data %>%
   ) %>% 
   mutate(
     serv_acc = if_else(D_ConServAcc_w2 == "Accessed services successfully", 1L, 0L),
-    serv_barr = if_else(D_ConServAcc_w2 == "Tried and failed to access contraceptive services", 1, 0),
+    serv_barr = if_else(D_ConServAcc_w2 == "Unable to access contraceptive services", 1, 0),
   D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
   SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)) %>% 
   select(-D_ConServAcc_w2) 
   
 
 
-serv_acc_ors <- serv_acc_data %>% 
-  select(-serv_barr) %>% 
-  pivot_longer(-c(serv_acc, weight2), names_to = "Comparison", values_to = "Cat") %>% 
-  nest(-Comparison) %>% 
-  mutate(mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat, weight2))) %>% 
+serv_acc_ors <- serv_acc_data %>%
+  select(-serv_barr) %>%
+  pivot_longer(-c(serv_acc, weight2, D_Age5Cat_w2),
+               names_to = "Comparison",
+               values_to = "Cat") %>%
+  nest(-Comparison) %>%
+  mutate(mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   unnest(mod_serv_acc) %>% 
-  mutate(ll = exp(ll),
-         ul = exp(ul),
-         OR = if_else(est == 1, 1, exp(est)),
-         aOR = if_else(est == 1, "1", aOR),
-         CI = if_else(est == 1, "(ref)", CI)) %>% 
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P) 
+  mutate(
+    ll = exp(ll),
+    ul = exp(ul),
+    OR = if_else(est == 1, 1, exp(est)),
+    aOR = if_else(est == 1, "1", aOR),
+    CI = if_else(est == 1, "(ref)", CI)
+  ) %>%
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P)
 
 
 
@@ -129,7 +134,7 @@ serv_barr_disp <- comp_labels %>%
 # this is tricky - doing by gplot -----------------------------------------
 # data = serv_barr_disp
 
-# draw_forest_table <-  function(data = serv_acc_disp, plot_title = "Successful use of Contraceptive Services") {
+draw_forest_table <-  function() {
     forest1 <- serv_acc_disp %>%
       # filter(Coefficient == coefficient) %>%
       ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
@@ -260,7 +265,13 @@ forest2 <- serv_barr_disp %>%
                      3,3,3,
                      4,4,4,4,4,4,
                      5,5,5
-                   ), nrow = 1)) %>% 
+                   ), nrow = 1))
+}
+
+draw_forest_table() 
+
+
+#%>% 
 ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 330, units = "mm")
     
     
