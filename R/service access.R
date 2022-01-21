@@ -321,10 +321,16 @@ serv_acc_reasons_tidy %>%
   gtsave("Service Access barriers.html")
 
 
+library(janitor)
+
   # wave2_data %>% 
   # group_by(D_Age5Cat_w2, D_ConServFailWhy_w2) %>% 
   # summarise(wt = sum(weight2)) %>% 
 serv_acc_reasons_tidy %>%
+  group_by(D_ConServFailWhy_w2) %>% 
+  nest() %>% 
+  mutate(data = map(data, ~adorn_totals(.x))) %>% 
+  unnest() %>% 
   ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServFailWhy_w2))) +
   geom_col(position = "fill", width = 0.5) +
   scale_fill_sphsu(name = str_wrap("Reasons for not being able to access contraceptive services", 50)) +
