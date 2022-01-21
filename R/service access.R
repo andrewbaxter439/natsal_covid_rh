@@ -354,7 +354,29 @@ wave2_data %>%
 weights::wtd.chi.sq(wave2_data$D_Age5Cat_w2, wave2_data$D_ConServFailWhy_w2, weight = wave2_data$weight2)
 
 
+# serivice access by age --------------------------------------------------
 
+wave2_data %>% 
+  select(D_ConServAcc_w2, D_Age5Cat_w2, weight2) %>% 
+  group_by(D_ConServAcc_w2, D_Age5Cat_w2) %>% 
+  summarise(wt = sum(weight2)) %>% 
+  nest() %>% 
+  mutate(data = map(data, ~adorn_totals(.x))) %>% 
+  unnest(data) %>% 
+  ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServAcc_w2))) +
+  # stat_sum(geom = "col", position = "fill", width = 0.5) +
+  geom_col(position = "fill", width = 0.5) +
+  scale_fill_sphsu(name = str_wrap("Reasons for not being able to access contraceptive services", 50)) +
+  theme_sphsu_light() +
+  scale_y_continuous("Weighted prevalence", 
+                     expand = expansion(0),
+                     labels = scales::percent) +
+  theme(panel.grid = element_blank(),
+        axis.ticks.x = element_blank()) +
+  scale_x_discrete("Age group")
+  
+ggsave(file.path(old_wd, "graphs/service access outcomes.png"), last_plot(), width = 350, height = 200, units = "mm", dpi = 400)
+  
 # better weights ----------------------------------------------------------
 
 library(survey)
