@@ -61,14 +61,23 @@ serv_acc_data <- wave2_data %>%
   
 
 
+
 serv_acc_ors <- serv_acc_data %>%
   select(-serv_barr) %>%
   pivot_longer(-c(serv_acc, weight2, D_Age5Cat_w2),
                names_to = "Comparison",
                values_to = "Cat") %>%
   nest(-Comparison) %>%
-  mutate(mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2))) %>% 
-  unnest(mod_serv_acc) %>% 
+  mutate(mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2))) %>%
+  unnest(mod_serv_acc) %>%
+  bind_rows(
+    serv_acc_data %>%
+      mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
+      return_ORs(serv_acc ~ Cat, weight2) %>%
+      mutate(Comparison = "D_Age5Cat_w2") %>% 
+      arrange(Cat),
+    .
+  ) %>%
   mutate(
     ll = exp(ll),
     ul = exp(ul),
@@ -94,10 +103,18 @@ serv_acc_disp <- comp_labels %>%
 
 serv_barr_ors <- serv_acc_data %>% 
   select(-serv_acc) %>% 
-  pivot_longer(-c(serv_barr, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
   nest(-Comparison) %>% 
-  mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat, weight2))) %>% 
+  mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   unnest(mod_serv_barr) %>% 
+  bind_rows(
+    serv_acc_data %>%
+      mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
+      return_ORs(serv_barr ~ Cat, weight2) %>%
+      mutate(Comparison = "D_Age5Cat_w2") %>% 
+      arrange(Cat),
+    .
+  ) %>%
   mutate(ll = if_else(ll<(-10), 1, exp(ll)),
          ul = if_else(ul<(-10), 1, exp(ul)),
          OR = if_else(est == 1 | est < -10, 1, exp(est)),
@@ -130,6 +147,10 @@ serv_barr_disp <- comp_labels %>%
          across(where(is.numeric), ~if_else(is.na(OR)&is.na(.x), 1, .x)),
          Cat = fct_inorder(Cat))
 
+draw_forest_table() 
+
+draw_forest_table() %>%
+ggsave(file.path(old_wd, "graphs/forest_plot.svg"), plot = ., height = 230, width = 330, units = "mm")
 
 # this is tricky - doing by gplot -----------------------------------------
 # data = serv_barr_disp
