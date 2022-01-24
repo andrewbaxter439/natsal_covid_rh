@@ -247,7 +247,8 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
       "Abortions"
     )
   ) %>% 
-  mutate(rate = if_else(outcome == "Chlamydia testing" & year < 2012, NA_real_, rate))
+  mutate(rate = if_else(outcome == "Chlamydia testing" & year < 2012, NA_real_, rate),
+         covid = if_else(year == 2020, 1, 0))
 
 natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>%
   mutate(gender = "Women") %>%
@@ -273,23 +274,26 @@ limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcom
 ## making graphs -----------------------------------------------------------
 
 
-surv_graphs <- surv_data_tidy %>% 
-  filter(year < 2020) %>% 
-  ggplot(aes(time, rate, colour = gender, shape = gender)) +
+(surv_graphs <- surv_data_tidy %>% 
+  # filter(year < 2020) %>% 
+  ggplot(aes(time, rate, colour = gender, shape = gender, fill = interaction(gender, covid))) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE) +
   geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
   scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0)), labels = scales::label_number(accuracy = 1)) +
   scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
   scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
-  scale_shape_discrete(name = "Gender") +
+  # scale_shape_discrete(name = "Gender") +
   labs(title = "Surveillance data") +
+  scale_shape_manual("Gender", values = c("Men" = 21, "Women" = 24)) +
   theme_sphsu_light() +
-  theme(legend.position = "bottom",
+  scale_fill_manual(values = c("Men.1" = 0, "Women.1" = 0,
+                                "Men.0" = sphsu_cols("Thistle", names = FALSE), "Women.0" = sphsu_cols("Turquoise", names = FALSE))) +
+  theme(legend.position = "none",
         strip.background = element_rect(fill = "white", size = 1),
         panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
         strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
-  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+  facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
 
 
 (natsal_graphs <- natsal_data_tidy %>% 
@@ -309,7 +313,7 @@ surv_graphs <- surv_data_tidy %>%
                       guide = guide_legend(override.aes = list(linetype = c(NA,NA), line = c(NA, NA)))) +
   theme_sphsu_light() +
   scale_shape_discrete("Gender") +
-  theme(legend.position = "none",
+  theme(legend.position = "bottom",
         strip.background = element_rect(fill = "white", size = 1),
         panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
         strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
