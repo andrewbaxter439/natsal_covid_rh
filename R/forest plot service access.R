@@ -31,12 +31,16 @@ comp_labels <- tibble(
   }))
 
 
+# New variables - ServAcc2_w2/ServTry4_w2
+
 serv_acc_data <- wave2_data %>%
-  filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
-  filter(!is.na(D_ConServAcc_w2)) %>%
+  # filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
+  # filter(!is.na(D_ConServAcc_w2)) %>%
   mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
   select(
     D_ConServAcc_w2,
+    ServAcc2_w2,
+    ServTry4_w2,
     D_Age5Cat_w2,
     D_EthnicityCombined_w2,
     D_SexIDL_w2,
@@ -53,28 +57,42 @@ serv_acc_data <- wave2_data %>%
     weight2
   ) %>% 
   mutate(
-    serv_acc = if_else(D_ConServAcc_w2 == "Accessed services successfully", 1L, 0L),
-    serv_barr = if_else(D_ConServAcc_w2 == "Unable to access contraceptive services", 1, 0),
+    serv_acc = ServAcc2_w2,
+    serv_barr = ServTry4_w2,
   D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
-  SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)) %>% 
+  SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+  .keep = "unused") %>% 
   select(-D_ConServAcc_w2) 
   
 
 
 
-serv_acc_ors <- serv_acc_data %>%
+serv_acc_ors <-
+  serv_acc_data %>%
   select(-serv_barr) %>%
   pivot_longer(-c(serv_acc, weight2, D_Age5Cat_w2),
                names_to = "Comparison",
                values_to = "Cat") %>%
   nest(-Comparison) %>%
-  mutate(mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2))) %>%
+  mutate(
+    mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2)),
+    sums = map(
+      data,
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n())
+    )
+  ) %>%
+  rowwise() %>%
+  mutate(mod_serv_acc = list(left_join(mod_serv_acc, sums, by = "Cat"))) %>%
+  # unnest(sums)
   unnest(mod_serv_acc) %>%
   bind_rows(
     serv_acc_data %>%
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
       return_ORs(serv_acc ~ Cat, weight2) %>%
-      mutate(Comparison = "D_Age5Cat_w2") %>% 
+      left_join(
+        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n()) %>% mutate(Cat = D_Age5Cat_w2)
+      ) %>%
+      mutate(Comparison = "D_Age5Cat_w2") %>%
       arrange(Cat),
     .
   ) %>%
@@ -83,9 +101,10 @@ serv_acc_ors <- serv_acc_data %>%
     ul = exp(ul),
     OR = if_else(est == 1, 1, exp(est)),
     aOR = if_else(est == 1, "1", aOR),
-    CI = if_else(est == 1, "(ref)", CI)
+    CI = if_else(est == 1, "(ref)", CI),
+    denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P)
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, denom)
 
 
 
@@ -105,33 +124,74 @@ serv_barr_ors <- serv_acc_data %>%
   select(-serv_acc) %>% 
   pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
   nest(-Comparison) %>% 
-  mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
-  unnest(mod_serv_barr) %>% 
+  mutate(
+    mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
+    sums = map(
+      data,
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n())
+    )
+  ) %>%
+  rowwise() %>%
+  mutate(mod_serv_barr = list(left_join(mod_serv_barr, sums, by = "Cat"))) %>%
+  # unnest(sums)
+  unnest(mod_serv_barr) %>%
   bind_rows(
     serv_acc_data %>%
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
       return_ORs(serv_barr ~ Cat, weight2) %>%
-      mutate(Comparison = "D_Age5Cat_w2") %>% 
+      left_join(
+        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n()) %>% mutate(Cat = D_Age5Cat_w2)
+      ) %>%
+      mutate(Comparison = "D_Age5Cat_w2") %>%
       arrange(Cat),
     .
   ) %>%
-  mutate(ll = if_else(ll<(-10), 1, exp(ll)),
-         ul = if_else(ul<(-10), 1, exp(ul)),
-         OR = if_else(est == 1 | est < -10, 1, exp(est)),
-         aOR = case_when(
-           est == 1 ~ "1",
-           aOR == "0.00" ~ "0",
-           TRUE ~ aOR
-         ),
-         CI = case_when(
-           est == 1 ~ "(ref)",
-           aOR == "0" ~ "(empty set)",
-           TRUE ~ CI
-         ),
-         # aOR = if_else(est == 1, "1", aOR),
-         # CI = if_else(est == 1, "(ref)", CI)
-         ) %>% 
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P) 
+  mutate(
+    ll = exp(ll),
+    ul = exp(ul),
+    OR = if_else(est == 1 | est < -10, 1, exp(est)),
+    aOR = case_when(
+      est == 1 ~ "1",
+      aOR == "0.00" ~ "0",
+      TRUE ~ aOR
+    ),
+    CI = case_when(
+      est == 1 ~ "(ref)",
+      aOR == "0" ~ "(empty set)",
+      TRUE ~ CI
+    ),
+    denom = paste0(wt, ", ", n)
+  ) %>%
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, denom)
+
+
+  # mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
+  # unnest(mod_serv_barr) %>% 
+  # bind_rows(
+  #   serv_acc_data %>%
+  #     mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
+  #     return_ORs(serv_barr ~ Cat, weight2) %>%
+  #     mutate(Comparison = "D_Age5Cat_w2") %>% 
+  #     arrange(Cat),
+  #   .
+  # ) %>%
+  # mutate(ll = if_else(ll<(-10), 1, exp(ll)),
+  #        ul = if_else(ul<(-10), 1, exp(ul)),
+  #        OR = if_else(est == 1 | est < -10, 1, exp(est)),
+  #        aOR = case_when(
+  #          est == 1 ~ "1",
+  #          aOR == "0.00" ~ "0",
+  #          TRUE ~ aOR
+  #        ),
+  #        CI = case_when(
+  #          est == 1 ~ "(ref)",
+  #          aOR == "0" ~ "(empty set)",
+  #          TRUE ~ CI
+  #        ),
+  #        # aOR = if_else(est == 1, "1", aOR),
+  #        # CI = if_else(est == 1, "(ref)", CI)
+  #        ) %>% 
+  # select(Comparison, Cat, OR, ll, ul, CI, aOR, P) 
 
 
 
@@ -253,7 +313,7 @@ forest2 <- serv_barr_disp %>%
     
     lab1 <- base_plot +
       geom_text(aes(label = Cat),
-                fontface = if_else(data$show == 0, "bold", "plain"),
+                fontface = if_else(serv_acc_disp$show == 0, "bold", "plain"),
                 hjust = 0,
                 size = pts(9)) +
       ggtitle(" \n ") 

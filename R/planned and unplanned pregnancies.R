@@ -500,7 +500,7 @@ adj_lin <- preg_dataset %>%
 
 
 
-# joining tables - ORs ----------------------------------------------------
+# joining tables - ORs and aORs for unplanned ----------------------------------
 
 
 all_preg_perc %>% 

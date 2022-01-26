@@ -428,7 +428,7 @@ robust_lm <- function(df, formula, weights, verbose = FALSE) {
 
 return_ORs <- function(df, formula, weights) {
   
-  cats <- levels(fct_drop(df$Cat)) %>% str_replace_all("(\\(|\\))", "\\\\\\1")
+  cats <- levels(fct_drop(df$Cat))  %>% str_replace_all("(\\(|\\))", "\\\\\\1")
   require(rlang)
   require(sandwich)
   
@@ -462,7 +462,7 @@ return_ORs <- function(df, formula, weights) {
              p < 0.001 ~  "<0.001",
              TRUE ~ as.character(round(p, 3))
            )) %>% 
-    bind_rows(tibble(Cat = cats[[1]], est = 1), .)
+    bind_rows(tibble(Cat = str_remove_all(cats[[1]], "\\\\"), est = 1), .)
   
 }
 
