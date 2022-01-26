@@ -70,6 +70,7 @@ serv_acc_data <- wave2_data %>%
 serv_acc_ors <-
   serv_acc_data %>%
   select(-serv_barr) %>%
+  filter(!is.na(serv_acc)) %>% 
   pivot_longer(-c(serv_acc, weight2, D_Age5Cat_w2),
                names_to = "Comparison",
                values_to = "Cat") %>%
@@ -78,7 +79,7 @@ serv_acc_ors <-
     mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
-      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n())
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_acc == "Yes"], na.rm = TRUE)/wt)
     )
   ) %>%
   rowwise() %>%
@@ -90,7 +91,7 @@ serv_acc_ors <-
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
       return_ORs(serv_acc ~ Cat, weight2) %>%
       left_join(
-        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n()) %>% mutate(Cat = D_Age5Cat_w2)
+        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_acc == "Yes"], na.rm = TRUE)/wt) %>% mutate(Cat = D_Age5Cat_w2)
       ) %>%
       mutate(Comparison = "D_Age5Cat_w2") %>%
       arrange(Cat),
@@ -104,14 +105,14 @@ serv_acc_ors <-
     CI = if_else(est == 1, "(ref)", CI),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, denom)
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)
 
 
 
 serv_acc_disp <- comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
-  bind_rows(serv_acc_ors) %>% 
+  bind_rows(serv_acc_ors %>% select(-wt, -n)) %>% 
   mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
@@ -122,13 +123,14 @@ serv_acc_disp <- comp_labels %>%
 
 serv_barr_ors <- serv_acc_data %>% 
   select(-serv_acc) %>% 
+  filter(!is.na(serv_barr)) %>% 
   pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
   nest(-Comparison) %>% 
   mutate(
     mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
-      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n())
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"])/wt)
     )
   ) %>%
   rowwise() %>%
@@ -140,7 +142,7 @@ serv_barr_ors <- serv_acc_data %>%
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
       return_ORs(serv_barr ~ Cat, weight2) %>%
       left_join(
-        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n()) %>% mutate(Cat = D_Age5Cat_w2)
+        group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"], na.rm = TRUE)/wt) %>% mutate(Cat = D_Age5Cat_w2)
       ) %>%
       mutate(Comparison = "D_Age5Cat_w2") %>%
       arrange(Cat),
@@ -162,7 +164,7 @@ serv_barr_ors <- serv_acc_data %>%
     ),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, denom)
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)
 
 
   # mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
@@ -198,7 +200,7 @@ serv_barr_ors <- serv_acc_data %>%
 serv_barr_disp <- comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
-  bind_rows(serv_barr_ors) %>% 
+  bind_rows(serv_barr_ors %>% select(-wt, -n)) %>% 
   mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
@@ -366,3 +368,55 @@ ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 33
 # grid.arrange(access_gr, barr_gr, left = -10, layout_matrix = matrix(c(1,2), nrow = 1)) 
 
 #%>% 
+
+
+# output table? -----------------------------------------------------------
+
+
+comp_labels <- tibble(
+  Comparison = c(
+    "D_Age5Cat_w2",
+    "qsg",
+    "D_EthnicityCombined_w2",
+    "D_Edu3Cat_w2",
+    "D_SexIDL_w2",
+    "EconActChg4_w2",
+    "EconActChg5_w2",
+    "D_drinkGrp_w2",
+    "SDSdrinkchangeW2_w2",
+    "Smokenow_w2",
+    "D_relstatcatv7_w2",
+    "D_PHQ2Cat_w2",
+    "D_GAD2Cat_w2",
+    "D_ConServAcc_w2",
+    "CondomAcc_w2")
+) %>%
+  mutate(label = map_chr(Comparison, function(exp_var) {
+    wave2_data %>%
+      pull(exp_var) %>%
+      attr("label")
+  }))
+
+# ooops - forgot to calculate percs as % successful!
+
+serv_acc_ors %>% 
+  mutate(outcome = "Successfully accessed services") %>% 
+  bind_rows(mutate(serv_barr_ors, outcome = "Barriers accessing services")) %>% 
+  group_by(Comparison, outcome) %>% 
+  mutate(ul_p = perc_ci(prop, "u", sum(wt)),
+         ll_p = perc_ci(prop, "l", sum(wt)),
+         `aOR (CI)` = paste(aOR, CI),
+         `% (CI)` = paste0(sprintf("%.1f", round(100*prop, 1)), " (", sprintf("%.1f", round(100*ll_p, 1)), ", ",
+                           sprintf("%.1f", round(100*ul_p, 1)), ")"
+                           ),
+         Denominator = denom) %>% 
+  select(Comparison, `  ` = Cat, `% (CI)`, `aOR (CI)`, P, Denominator, outcome) %>% 
+  pivot_wider(names_from = outcome, values_from = c(`% (CI)`, `aOR (CI)`, P, Denominator),
+              names_glue = "{outcome}_{.value}") %>% 
+  left_join(comp_labels, by  = "Comparison") %>% 
+  ungroup() %>% 
+  select(-Comparison) %>% 
+  mutate(" " = " ",
+         across(.fns = ~ replace_na(.x, "-"))) %>% 
+  gt(groupname_col = "label", rowname_col = " ") %>% 
+  tab_spanner_delim("_")
