@@ -32,7 +32,6 @@ comp_labels <- tibble(
       attr("label")
   }))
 
-### Filter for pregnant in last year!!! ###
 
 # Graph of pregnancies by LMUP
 wave2_data %>%
@@ -79,7 +78,7 @@ wave2_data %>%
   theme(panel.background = element_blank(),
         legend.key = element_blank())
 
-ggsave(file.path(old_wd, "graphs/LMUP_scores.png"), width = 250, height = 120, units = "mm", dpi = 300)
+# ggsave(file.path(old_wd, "graphs/LMUP_scores.png"), width = 250, height = 120, units = "mm", dpi = 300)
 
 # testing glms --------------------------------------------------------------
 
@@ -290,7 +289,7 @@ preg_perc %>% select(
 
 
 
-# new table - ORs for pregnancy, ORs and lms for unplanned ----------------
+# start here: new table - ORs for pregnancy, ORs and lms for unplanned ----------------
 
 
 preg_dataset <- wave2_data %>% 
@@ -415,12 +414,12 @@ unpl_preg_perc <-  preg_dataset %>%
                                       ")")
   )
 
-# odds of planned (from all - adjusted)
+# odds of all pregnancy (from all - adjusted)
 
 
 unadj_ors_p <- preg_dataset %>% 
   select(- D_LMUPScore_w2, -D_LMUPCat_w2) %>% 
-  pivot_longer(- c(Preg_unpl, D_Age5Cat_w2, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  pivot_longer(- c(Preg_unpl, D_Preg1yr_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
   filter(!is.na(Cat)) %>%
   group_by(Comparison) %>% 
   nest() %>% 
@@ -467,8 +466,8 @@ adj_ors <- preg_dataset %>%
 unadj_lin <- preg_dataset %>% 
   filter(!is.na(Preg_unpl)) %>% 
   select(- Preg_unpl, -D_LMUPCat_w2, -D_Preg1yr_w2) %>% 
-  pivot_longer(- c(D_LMUPScore_w2, D_Age5Cat_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
-  mutate(inv_score = 12 - D_LMUPScore_w2, .keep = "unused") %>% 
+  pivot_longer(- c(D_LMUPScore_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  mutate(inv_score = D_LMUPScore_w2, .keep = "unused") %>% 
   group_by(Comparison) %>% 
   nest() %>% 
   mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat, weight2))) %>% 
@@ -485,7 +484,7 @@ adj_lin <- preg_dataset %>%
   filter(!is.na(Preg_unpl)) %>% 
   select(- Preg_unpl, -D_LMUPCat_w2, -D_Preg1yr_w2) %>% 
   pivot_longer(- c(D_LMUPScore_w2, D_Age5Cat_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
-  mutate(inv_score = 12 - D_LMUPScore_w2, .keep = "unused") %>% 
+  mutate(inv_score = D_LMUPScore_w2, .keep = "unused") %>% 
   group_by(Comparison) %>% 
   nest() %>% 
   mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat + D_Age5Cat_w2, weight2))) %>% 
@@ -497,6 +496,28 @@ adj_lin <- preg_dataset %>%
            p < 0.001 ~  "<0.001",
            TRUE ~ as.character(round(p, 3))
          ))
+
+
+
+# mean scores and denominators --------------------------------------------
+
+scores_denoms <- preg_dataset %>% 
+  # filter(!is.na(Preg_unpl)) %>% 
+  mutate(D_LMUPScore_w2 = if_else(is.na(Preg_unpl), na_dbl, D_LMUPScore_w2)) %>% 
+  select(- Preg_unpl, -D_LMUPCat_w2, -D_Preg1yr_w2) %>% 
+  pivot_longer(- c(D_LMUPScore_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
+  filter(!is.na(Cat)) %>% 
+  group_by(Comparison, Cat) %>% 
+  summarise(mean_sc = mean(D_LMUPScore_w2, na.rm = TRUE),
+            sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
+            wt = sum(weight2),
+            n = n(),
+            .groups = "keep")  %>% 
+  transmute(`Mean LMUP Score (SD)` = paste0(round(mean_sc, 1), " (", round(sd_sc, 1), ")"),
+            `Denominator (weighted, unweighted)` = paste0(round(wt, 0), ", ", round(n, 0))) %>% 
+  ungroup() %>% 
+  left_join(comp_labels, by = "Comparison") %>% 
+  select(-Comparison)
 
 
 
@@ -722,7 +743,7 @@ all_preg_perc %>%
   tab_spanner_delim("_") 
 
 
-# same, but linear --------------------------------------------------------
+# output table - odds and linear --------------------------------------------------------
 
 
 
@@ -738,6 +759,16 @@ all_preg_perc %>%
   Cat
 ) %>% 
   left_join(
+    bind_rows(
+    unadj_ors_p %>%
+      select(
+        Comparison,
+        Cat,
+        `Pregnancy adjusted Odds ratio_OR` =OR,
+        `Pregnancy adjusted Odds ratio_CI` = CI,
+        `Pregnancy adjusted Odds ratio_p-value` = P
+      ) %>% 
+    filter(Comparison == "D_Age5Cat_w2"),
     adj_ors_p %>%
       select(
         Comparison,
@@ -745,10 +776,20 @@ all_preg_perc %>%
         `Pregnancy adjusted Odds ratio_OR` = aOR,
         `Pregnancy adjusted Odds ratio_CI` = CI,
         `Pregnancy adjusted Odds ratio_p-value` = P
-      ),
+      )),
     by = c("Comparison", "Cat")
   ) %>% 
   left_join(
+    bind_rows(
+      unadj_lin %>% 
+        select(
+          Comparison,
+          Cat = coef,
+          `Unplanned pregnancy score_Coefficient` = est,
+          `Unplanned pregnancy score_CI` = CI,
+          `Unplanned pregnancy score_p-value` = P
+        ) %>% 
+        filter(Comparison == "D_Age5Cat_w2"),
     adj_lin %>%
       select(
         Comparison,
@@ -756,7 +797,7 @@ all_preg_perc %>%
         `Unplanned pregnancy score_Coefficient` = adj_est,
         `Unplanned pregnancy score_CI` = CI,
         `Unplanned pregnancy score_p-value` = P
-      ),
+      )),
     by = c("Comparison", "Cat")
   ) %>% 
   left_join(comp_labels, by = "Comparison") %>%
@@ -770,12 +811,14 @@ all_preg_perc %>%
     `Pregnancy in last year_CI`,
     `Unplanned pregnancy_%`,
     `Unplanned pregnancy_CI`,
+    # `Mean LMUP Score (SD)`,
     `Pregnancy adjusted Odds ratio_OR`,
     `Pregnancy adjusted Odds ratio_CI`,
     `Pregnancy adjusted Odds ratio_p-value`,
     `Unplanned pregnancy score_Coefficient`,
     `Unplanned pregnancy score_CI`,
     `Unplanned pregnancy score_p-value`,
+    # `Denominator (weighted, unweighted)`,
     # `p-value`,
     label
   ) %>%
@@ -786,6 +829,7 @@ all_preg_perc %>%
   # mutate(across(`Unplanned pregnancy_CI`:`Age-adjusted Odds ratio_p-value`, ~ ifelse(`Unplanned pregnancy_%` == "0.0", NA, .x))) %>% 
   mutate(across(everything(), ~ ifelse(str_detect(.x, "NaN"), NA, .x))) %>%
   mutate(across(everything(), .fns = replace_na, "-")) %>%
+  mutate(across(ends_with("CI"), ~str_replace_all(.x, " ", "\u00A0"))) %>% 
   pivot_longer(
     3:12,
     names_to = c("outcome", "met"),
@@ -813,16 +857,19 @@ all_preg_perc %>%
                     `p-value`),
     names_glue = "{outcome}_{.value}"
   ) %>% 
+  left_join(scores_denoms, by = c(`  ` = "Cat", "label")) %>% 
   select(
     ` `,
     `  `,
     label,
     `Pregnancy in last year_% (CI)`,
-    `Unplanned pregnancy_% (CI)`,
+    `Of which unplanned_% (CI)` = `Unplanned pregnancy_% (CI)`,
+    `Mean LMUP Score (SD)`,
     `Pregnancy adjusted Odds ratio_OR (CI)`,
     `Pregnancy adjusted Odds ratio_p-value`,
-    `Unplanned pregnancy score_Coefficient (CI)`,
-    `Unplanned pregnancy score_p-value`
+    `Difference in LMUP Score_Coefficient (CI)` = `Unplanned pregnancy score_Coefficient (CI)`,
+    `Difference in LMUP Score_p-value` = `Unplanned pregnancy score_p-value`,
+    `Denominator (weighted, unweighted)`
   ) %>% 
   gt(groupname_col = "label", rowname_col = " ") %>%
   summary_rows(
