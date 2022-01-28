@@ -1,8 +1,7 @@
 library(tidyverse)
 source(file.path(old_wd, "R/import and convert.R"))
 source(file.path(old_wd, "R/functions.R"))
-library(survey)
-library(egg)
+# library(survey)
 
 pts <- function (size) return(size * 5/14)
 
@@ -218,6 +217,11 @@ ggsave(file.path(old_wd, "graphs/forest_plot.svg"), plot = ., height = 230, widt
 # data = serv_barr_disp
 
 draw_forest_table <-  function() {
+  
+  require(patchwork)
+  require(ggplot2)
+  require(dplyr)
+  
     forest1 <- serv_acc_disp %>%
       # filter(Coefficient == coefficient) %>%
       ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
@@ -225,6 +229,7 @@ draw_forest_table <-  function() {
                  colour = "darkgrey",
                  size = 1) +
       geom_point(aes(fill = empty), shape = 23, size = 2) +
+      # geom_segment(aes(x = 1, xend = 1, y = 0, yend = fct_rev(Cat)), colour = "darkgrey", inherit.aes = FALSE) +
       scale_fill_identity() +
       geom_linerange(aes(xmin = ll, xmax = ul)) +
       facet_grid(Comparison ~ .,
@@ -294,6 +299,7 @@ forest2 <- serv_barr_disp %>%
         strip.text = element_blank(),
         # panel.spacing.y = unit(1, "cm"),
         panel.background = element_blank(),
+        plot.background = element_blank(),
         plot.margin = margin(l = 0, r = 0),
         axis.text.y = element_blank(),
         axis.title.y = element_blank(),
@@ -310,21 +316,23 @@ forest2 <- serv_barr_disp %>%
         plot.title = element_text(size = 10, hjust = 0)
       ) +
       coord_cartesian(clip = "off") +
-      scale_x_continuous(expand = expansion(add = c(0, 0)), limits = c(0, 2))
+      scale_x_continuous(expand = expansion(add = c(0, 0)), limits = c(0, 2), breaks = 0)
     
     
     lab1 <- base_plot +
       geom_text(aes(label = Cat),
                 fontface = if_else(serv_acc_disp$show == 0, "bold", "plain"),
                 hjust = 0,
+                vjust = 0.3,
                 size = pts(9)) +
-      ggtitle(" \n ") 
+      ggtitle(" \n ")
       # xlim(0, 2) +
     
     
     lab2 <- base_plot +
       geom_text(aes(label = paste(aOR, CI)),
                 hjust = 0,
+                vjust = 0.3,
                 size = pts(9)) +
       ggtitle("\nOR (CI)")
     
@@ -332,6 +340,7 @@ forest2 <- serv_barr_disp %>%
     lab3 <- base_plot +
       geom_text(data = serv_barr_disp, aes(label = paste(aOR, CI)),
                 hjust = 0,
+                vjust = 0.3,
                 size = pts(9)) +
       ggtitle("\nOR (CI)")
     # 
@@ -341,17 +350,32 @@ forest2 <- serv_barr_disp %>%
     #   lab1_grob$layout$clip <- "off"
     # }
     
-    grid.arrange(lab1, forest1, lab2, forest2, lab3, layout_matrix = 
-                   matrix(c(
-                     1,1,1,1,1,1,1,
-                     2,2,2,2,2,2,
-                     3,3,3,
-                     4,4,4,4,4,4,
-                     5,5,5
-                   ), nrow = 1))
+    # grid.arrange(lab1, forest1, lab2, forest2, lab3, layout_matrix = 
+    #                matrix(c(
+    #                  1,1,1,1,1,1,1,
+    #                  2,2,2,2,2,2,
+    #                  3,3,3,
+    #                  4,4,4,4,4,4,
+    #                  5,5,5
+    #                ), nrow = 1))
+  layout <- c(
+    area(1, l = 2),
+    area(1, 1, r = 2),
+    area(1, 3),
+    area(1, 4),
+    area(1, 5)
+  )
+  
+forest1 + lab1 + lab2 + forest2 + lab3 + plot_layout(nrow = 1, widths = c(6, 7, 3, 6, 3), design = layout)
+
 }
 
-draw_forest_table() 
+draw_forest_table()
+# ggsave(file.path(old_wd, "graphs/test2.png"), plot = ., height = 230, width = 330, units = "mm", dpi = 1200)
+
+
+  
+
 
 
 #%>% 
