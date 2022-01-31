@@ -2,6 +2,7 @@ library(readxl)
 library(tidyverse)
 library(SPHSUgraphs)
 library(broom)
+
 conceptions2019workbook <- read_excel(file.path(old_wd, "data", "conceptions2019workbook.xlsx"),
 sheet = "Table 1a", skip = 4)
 
@@ -206,11 +207,29 @@ sti_testing <- hiv_testing %>%
 
 library(patchwork)
 
+# full abortions stats ----------------------------------------------------
+
+library(readxl)
+abortions_2010_2020 <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/abortions_2010_2020.xlsx")
+
+abortions_yearly <- abortions_2010_2020 %>% 
+  filter(!(Age %in% c("All ages", "Under 16", "16-17", "Under 18"))) %>% 
+  pivot_longer(-c(Age, stat), names_to = "year", values_to = "val") %>% 
+  pivot_wider(names_from = stat, values_from = val) %>% 
+  mutate(pop = number*1000/rate) %>% 
+  group_by(year) %>% 
+  summarise(#number = sum(number),
+            abo_rate = weighted.mean(rate, w = pop)) %>% 
+            #op = sum(pop))
+  mutate(group = "surv",
+         year = as.numeric(year))
 
 ## tidying data ------------------------------------------------------------
 
 
 surv_data_tidy <- conceptions_abortions_yearly %>%
+  select(-abo_rate) %>% 
+  full_join(abortions_yearly, by = c("year", "group")) %>% 
   mutate(gender = "Women",
          con_rate = con_rate / 10,
          abo_rate = abo_rate / 10) %>%
@@ -271,7 +290,10 @@ limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcom
   group_by(outcome) %>% 
   summarise(max = max(rate, ui, na.rm = TRUE)*1.1)
 
-## making graphs -----------------------------------------------------------
+
+
+conceptions_abortions_yearly
+# making graphs -----------------------------------------------------------
 
 
 (surv_graphs <- surv_data_tidy %>% 
@@ -323,7 +345,7 @@ limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcom
 
 (surv_graphs + natsal_graphs) / guide_area()  + plot_layout(guides = "collect", heights = c(10, 1))
 
-ggsave("suveillance_comparison.png", height = 30, width = 24, units = "cm", dpi = 400)
+ggsave("suveillance_comparison_2.png", height = 30, width = 24, units = "cm", dpi = 400)
 
   # testing significance - move to rmd? -------------------------------------
 
