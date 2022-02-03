@@ -163,7 +163,10 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
 
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
-  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
+           D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+           SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
+         ) %>% 
   crosstab_per_outcome(
     D_ConNoCon_w2,
     Total,
@@ -181,12 +184,15 @@ wave2_data %>%
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
   )  %>% 
-  gtsave("Contraception outcomes.html")
+  gtsave("graphs/Contraception outcomes.html")
 
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4,
          as.numeric(D_ConPre_w2) != 3) %>% 
-  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
+         D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+         SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
+  ) %>% 
   crosstab_per_outcome(
     D_SwitchTo_w2,
     Total,
@@ -204,11 +210,14 @@ wave2_data %>%
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
   ) %>% 
-  gtsave("Contraception switching.html")
+  gtsave("graphs/Contraception switching.html")
 
 wave2_data %>%
   filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
-  mutate(across(where(is.factor), .fns = ~fct_drop(.x))) %>% 
+  mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
+         D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+         SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
+  ) %>% 
   crosstab_per_outcome(
     D_ConServAcc_w2,
     Total,
@@ -226,5 +235,5 @@ wave2_data %>%
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
   ) %>% 
-  gtsave("Service access.html")
+  gtsave("graphs/Service access.html")
 
