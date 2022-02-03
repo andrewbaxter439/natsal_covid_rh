@@ -202,6 +202,18 @@ adj_lin <- preg_dataset %>%
 
 
 
+# testing score diff by age -----------------------------------------------
+
+preg_dataset %>% 
+  filter(!is.na(D_LMUPScore_w2), D_Preg1yr_w2 == "Yes") %>% 
+  group_by(D_Age5Cat_w2) %>% 
+  summarise(mean_lmup = weighted.mean(D_LMUPScore_w2, w = weight2))
+
+preg_dataset %>% 
+  filter(!is.na(D_LMUPScore_w2), D_Preg1yr_w2 == "Yes") %>% 
+  robust_lm(D_LMUPScore_w2 ~ D_Age5Cat_w2, weight2) 
+
+
 # mean scores and denominators --------------------------------------------
 
 scores_denoms <- preg_dataset %>% 
@@ -211,8 +223,9 @@ scores_denoms <- preg_dataset %>%
   pivot_longer(- c(D_LMUPScore_w2, weight2), names_to = "Comparison", values_to = "Cat") %>% 
   filter(!is.na(Cat)) %>% 
   group_by(Comparison, Cat) %>% 
-  summarise(mean_sc = mean(D_LMUPScore_w2, na.rm = TRUE),
-            sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
+  summarise(mean_sc = weighted.mean(D_LMUPScore_w2, w = weight2, na.rm = TRUE),
+            # sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
+            sd_sc = sqrt(Hmisc::wtd.var(D_LMUPScore_w2, weights = weight2, na.rm = TRUE)),
             wt = sum(weight2),
             n = n(),
             .groups = "keep")  %>% 
@@ -304,13 +317,14 @@ all_preg_perc %>%
     label
   ) %>%
   rowwise() %>%
-  mutate(across(c(`Unplanned pregnancy score_Coefficient`,
-                  `Unplanned pregnancy score_CI`,
-                  `Unplanned pregnancy score_p-value`), ~ ifelse(`Unplanned pregnancy_%` == "0.0", NA, .x))) %>% 
+  # mutate(across(c(`Unplanned pregnancy score_Coefficient`,
+  #                 `Unplanned pregnancy score_CI`,
+  #                 `Unplanned pregnancy score_p-value`), ~ ifelse(`Unplanned pregnancy_%` == "0.0", NA, .x))) %>% 
   # mutate(across(`Unplanned pregnancy_CI`:`Age-adjusted Odds ratio_p-value`, ~ ifelse(`Unplanned pregnancy_%` == "0.0", NA, .x))) %>% 
   mutate(across(everything(), ~ ifelse(str_detect(.x, "NaN"), NA, .x))) %>%
   mutate(across(everything(), .fns = replace_na, "-")) %>%
   mutate(across(ends_with("CI"), ~str_replace_all(.x, " ", "\u00A0"))) %>% 
+  mutate(across(ends_with("CI"), ~str_replace_all(.x, "-", "-\uFEFF"))) %>% 
   pivot_longer(
     3:12,
     names_to = c("outcome", "met"),
