@@ -47,6 +47,27 @@ conceptions_abortions_yearly <-
   mutate(rel_con_rate = con_rate / con_rate[year==2010],
          rel_abo_rate = abo_rate / abo_rate[year==2010]) 
 
+natsal_preg <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
+                       "natsal", 2010, "Conceptions", 0.146, 0.135, 0.158,
+                       "natsal", 2020, "Conceptions", 0.106, 0.093, 0.121)
+
+natsal_abo <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
+                       "natsal", 2010, "Abortions", 0.023, 0.019, 0.028,
+                       "natsal", 2020, "Abortions", 0.008, 0.004, 0.014)
+
+
+
+pregnancy_rates_joined <- conceptions_abortions_yearly %>% 
+  mutate(perc = con_rate/1000) %>% 
+  bind_rows(natsal_preg) %>% 
+  mutate(exp = if_else(year == 2020, "cov", "pre_cov"),
+    exp = factor(exp, levels = c("pre_cov", "cov")),
+         time = year - 2009)
+
+
+# test graphs ------------------------------------------------------------------
+
+
 conceptions_abortions_yearly %>% 
   ggplot(aes(year, con_rate)) + 
   geom_line() + 
@@ -64,22 +85,6 @@ ggplot(aes(year, abo_rate)) +
 
 # try a linear model ------------------------------------------------------
 
-natsal_preg <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
-                       "natsal", 2010, "Conceptions", 0.146, 0.135, 0.158,
-                       "natsal", 2020, "Conceptions", 0.106, 0.093, 0.121)
-
-natsal_abo <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
-                       "natsal", 2010, "Abortions", 0.023, 0.019, 0.028,
-                       "natsal", 2020, "Abortions", 0.008, 0.004, 0.014)
-
-
-
-pregnancy_rates_joined <- conceptions_abortions_yearly %>% 
-  mutate(perc = con_rate/1000) %>% 
-  bind_rows(natsal_preg) %>% 
-  mutate(exp = if_else(year == 2020, "cov", "pre_cov"),
-    exp = factor(exp, levels = c("pre_cov", "cov")),
-         time = year - 2009)
 
 
 pregnancy_rates_joined %>% 
@@ -151,7 +156,6 @@ pregnancy_rates_joined %>%
 
 
   
-# graphs for pregnancy and abortion rates ---------------------------------
   
 
 
@@ -389,3 +393,31 @@ surv_data_tidy %>%
       sep = "\n"
     )
   }
+
+
+# only public data --------------------------------------------------------
+
+
+surv_data_tidy %>% 
+  filter(outcome %in% c("Conceptions", "Abortions")) %>% 
+  # mutate(outcome = fct_drop(outcome)) %>%
+  # filter(year < 2020) %>% 
+  ggplot(aes(time, rate, colour = gender, shape = gender, fill = interaction(gender, covid))) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(data = limit_sets%>% 
+               filter(outcome %in% c("Conceptions", "Abortions")) , aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
+  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0)), labels = scales::label_number(accuracy = 1)) +
+  scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
+  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
+  # scale_shape_discrete(name = "Gender") +
+  labs(title = "Surveillance data") +
+  scale_shape_manual("Gender", values = c("Men" = 21, "Women" = 24)) +
+  theme_sphsu_light() +
+  scale_fill_manual(values = c("Men.1" = 0, "Women.1" = 0,
+                               "Men.0" = sphsu_cols("Thistle", names = FALSE), "Women.0" = sphsu_cols("Turquoise", names = FALSE))) +
+  theme(legend.position = "none",
+        strip.background = element_rect(fill = "white", size = 1),
+        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
+        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
+  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
