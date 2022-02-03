@@ -33,10 +33,10 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
       janitor::adorn_totals(name = tot_name) %>% 
       as_tibble %>% 
       mutate(
-        Denominators = paste0("\u200D", round(wt, 0), "," , n),
+        Denominators = paste0("\u200D", round(wt, 0), ", " , n),
       ll = perc_ci(perc, n = sum(wt)),
       ul = perc_ci(perc, "u", sum(wt)),
-      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1))),
       CI = paste0(
         "(",
         sprintf(fmt = "%.1f", round(ll * 100, 1)),
@@ -49,7 +49,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
         str_detect(CI, "NaN") ~ "-", 
         TRUE ~ paste(`%`, CI, sep = " "))
       ) %>% 
-      select(!!var_out, `Age distribution`, Denominators) %>% 
+      select(!!var_out, `Age distribution (% (95% CI))` = `Age distribution`, `Denominators (weighted, unweighted)` = Denominators) %>% 
       pivot_longer(-!!var_out, names_to = "  ") %>% 
       mutate(cat = "Total", ` ` = " ") %>% 
       pivot_wider(c(cat, ` `,`  `), names_from = !!var_out, values_from = value) 
@@ -68,7 +68,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
       perc = wt / sum(wt),
       ll = perc_ci(perc, n = sum(wt)),
       ul = perc_ci(perc, "u", sum(wt)),
-      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), "%"),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1))),
       CI = paste0(
         "(",
         sprintf(fmt = "%.1f", round(ll * 100, 1)),
@@ -150,6 +150,10 @@ demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
 }
 
 wave2_data %>%
+  mutate(
+    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
+  ) %>%
   demographics_per_outcome(
     D_Age5Cat_w2,
     Total,
@@ -165,5 +169,5 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) %>% 
+  ) %>%
   gtsave("Demographics.html")
