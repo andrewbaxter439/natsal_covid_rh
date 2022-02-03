@@ -81,7 +81,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
       Total = paste0(round(w, 0), ", " , n),
       `P-value` = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
     ) %>% 
-      pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted/unweighted)") %>% 
+      pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted, unweighted)") %>% 
     mutate(` ` = " ") %>% 
     ungroup()
 
@@ -106,14 +106,14 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     mutate(` ` = " ",
            `  ` = as.character(exposure),
            .keep = "unused",
-           `Denominators (weighted/unweighted)` = paste0(wt, ", ", n)) %>% 
+           `Denominators (weighted, unweighted)` = paste0(wt, ", ", n)) %>% 
     left_join(tab1b, by = c("cat", " ", "  ")) %>% 
     bind_rows(tab2) %>%
     mutate(across(.fns = ~ replace_na(.x, " ")),
            cat = ifelse(quo_name(var_exp) == "Total", " ", cat)
            # `  ` = if_else(`  ` == "Total", " ", `  `)
            ) %>% 
-    select(-`Denominators (weighted/unweighted)`, `Denominators (weighted/unweighted)`)
+    select(-`Denominators (weighted, unweighted)`, `Denominators (weighted, unweighted)`)
     
 
   tabout
