@@ -78,7 +78,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     ) %>%
     transmute(
       cat = title,
-      Total = paste0("\u200D(", round(w, 0), "," , n, ")"),
+      Total = paste0(round(w, 0), ", " , n),
       `P-value` = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
     ) %>% 
       pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted/unweighted)") %>% 
@@ -106,7 +106,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     mutate(` ` = " ",
            `  ` = as.character(exposure),
            .keep = "unused",
-           `Denominators (weighted/unweighted)` = paste0("\u200D(", wt, ",", n, ")")) %>% 
+           `Denominators (weighted/unweighted)` = paste0(wt, ", ", n)) %>% 
     left_join(tab1b, by = c("cat", " ", "  ")) %>% 
     bind_rows(tab2) %>%
     mutate(across(.fns = ~ replace_na(.x, " ")),
@@ -237,3 +237,69 @@ wave2_data %>%
   ) %>% 
   gtsave("graphs/Service access.html")
 
+
+
+# stop or switch at all ---------------------------------------------------
+
+wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         as.numeric(D_ConPre_w2) != 3) %>%
+  mutate(
+    across(where(is.factor), .fns = ~ fct_drop(.x)),
+    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    D_StopOrSwitch_w2 = fct_collapse(
+      D_SwitchTo_w2,
+      "Stopped using contraceptives" = "Stopped using contraceptives",
+      "Did not switch usual method" = "Did not switch usual method",
+      other_level = "Switched usual or only contraceptive method"
+    ) %>% 
+      fct_relevel(
+      "Did not switch usual method",
+      "Stopped using contraceptives",
+      "Switched usual or only contraceptive method"
+      )
+  ) %>% 
+  crosstab_per_outcome(
+    D_StopOrSwitch_w2,
+    Total,
+    D_Age5Cat_w2,
+    D_EthnicityCombined_w2,
+    D_SexIDL_w2,
+    qsg,
+    D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
+    EconActChg4_w2,
+    EconActChg5_w2,
+    D_drinkGrp_w2,
+    SDSdrinkchangeW2_w2,
+    Smokenow_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2
+  )
+
+# Getting an N
+
+wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         as.numeric(D_ConPre_w2) != 3) %>%
+  mutate(
+    across(where(is.factor), .fns = ~ fct_drop(.x)),
+    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    D_StopOrSwitch_w2 = fct_collapse(
+      D_SwitchTo_w2,
+      "Stopped using contraceptives" = "Stopped using contraceptives",
+      "Did not switch usual method" = "Did not switch usual method",
+      other_level = "Switched usual or only contraceptive method"
+    ) %>% 
+      fct_relevel(
+        "Did not switch usual method",
+        "Stopped using contraceptives",
+        "Switched usual or only contraceptive method"
+      )
+  ) %>% 
+  filter(!is.na(D_StopOrSwitch_w2)) %>% 
+  group_by(D_StopOrSwitch_w2) %>% 
+  summarise(n = sum(weight2)) %>% 
+  mutate(perc = n/sum(n))
