@@ -1,5 +1,5 @@
-source(file.path(old_wd, "R/import and convert.R"))
-source(file.path(old_wd, "R/functions.R"))
+source("R/import and convert.R")
+source("R/functions.R")
 library(SPHSUgraphs)
 library(patchwork)
 library(sandwich)

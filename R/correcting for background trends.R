@@ -3,7 +3,7 @@ library(tidyverse)
 library(SPHSUgraphs)
 library(broom)
 
-conceptions2019workbook <- read_excel(file.path(old_wd, "data", "conceptions2019workbook.xlsx"),
+conceptions2019workbook <- read_excel(file.path("data", "conceptions2019workbook.xlsx"),
 sheet = "Table 1a", skip = 4)
 
 

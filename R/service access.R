@@ -1,5 +1,5 @@
-source(file.path(old_wd, "R/import and convert.R"))
-source(file.path(old_wd, "R/functions.R"))
+source("R/import and convert.R")
+source("R/functions.R")
 library(gt)
 library(weights)
 library(SPHSUgraphs)
@@ -68,7 +68,7 @@ wave2_data %>%
 
 
 ggsave(
-  file.path(old_wd, "graphs/try_to_access.png"),
+  "graphs/try_to_access.png",
   width = 250,
   height = 60,
   units = "mm",
@@ -364,11 +364,11 @@ g$grobs[[15]] <- gtable::gtable_add_grob(g$grob[[15]], gridtext::richtext_grob(l
 
 
 
-  png(file.path(old_wd, "graphs/service access reasons.png"), width = 350, height = 200, units = "mm", res = 400)
+  png("graphs/service access reasons.png", width = 350, height = 200, units = "mm", res = 400)
 grid.draw(g)
 dev.off()
   
-ggsave(file.path(old_wd, "graphs/service access reasons.png"), ., width = 350, height = 200, units = "mm", dpi = 400)
+ggsave("graphs/service access reasons.png", ., width = 350, height = 200, units = "mm", dpi = 400)
 
 wave2_data %>%
   filter(!is.na(D_ConServFailWhy_w2)) %>%
@@ -407,7 +407,7 @@ wave2_data %>%
         axis.ticks.x = element_blank()) +
   scale_x_discrete("Age group")
   
-ggsave(file.path(old_wd, "graphs/service access outcomes.png"), last_plot(), width = 350, height = 200, units = "mm", dpi = 400)
+ggsave("graphs/service access outcomes.png", last_plot(), width = 350, height = 200, units = "mm", dpi = 400)
   
 # better weights ----------------------------------------------------------
 

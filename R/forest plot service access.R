@@ -1,6 +1,6 @@
 library(tidyverse)
-source(file.path(old_wd, "R/import and convert.R"))
-source(file.path(old_wd, "R/functions.R"))
+source("R/import and convert.R")
+source("R/functions.R")
 # library(survey)
 
 pts <- function (size) return(size * 5/14)
@@ -211,7 +211,7 @@ serv_barr_disp <- comp_labels %>%
 draw_forest_table() 
 
 draw_forest_table() %>%
-ggsave(file.path(old_wd, "graphs/forest_plot.svg"), plot = ., height = 230, width = 330, units = "mm")
+ggsave("graphs/forest_plot.svg", plot = ., height = 230, width = 330, units = "mm")
 
 # this is tricky - doing by gplot -----------------------------------------
 # data = serv_barr_disp
@@ -379,7 +379,7 @@ draw_forest_table()
 
 
 #%>% 
-ggsave(file.path(old_wd, "graphs/test2.svg"), plot = ., height = 230, width = 330, units = "mm")
+ggsave("graphs/test2.svg", plot = ., height = 230, width = 330, units = "mm")
     
     
   #}
