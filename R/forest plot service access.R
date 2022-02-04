@@ -129,7 +129,7 @@ serv_barr_ors <- serv_acc_data %>%
     mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
-      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"])/wt)
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"])/sum(weight2))
     )
   ) %>%
   rowwise() %>%
@@ -371,27 +371,9 @@ forest1 + lab1 + lab2 + forest2 + lab3 + plot_layout(nrow = 1, widths = c(6, 7, 
 }
 
 draw_forest_table()
-# ggsave(file.path(old_wd, "graphs/test2.png"), plot = ., height = 230, width = 330, units = "mm", dpi = 1200)
 
-
-  
-
-
-
-#%>% 
 ggsave("graphs/test2.svg", plot = ., height = 230, width = 330, units = "mm")
-    
-    
-  #}
-
-# access_gr <- draw_forest_table(serv_acc_disp)
-# barr_gr <- draw_forest_table(serv_barr_disp, plot_title = "Barriers accessing Contraceptive Services")
-
-
-
-# grid.arrange(access_gr, barr_gr, left = -10, layout_matrix = matrix(c(1,2), nrow = 1)) 
-
-#%>% 
+  
 
 
 # output table? -----------------------------------------------------------
@@ -401,6 +383,7 @@ comp_labels <- tibble(
   Comparison = c(
     "D_Age5Cat_w2",
     "qsg",
+    "Total",
     "D_EthnicityCombined_w2",
     "D_Edu3Cat_w2",
     "D_SexIDL_w2",
@@ -422,10 +405,25 @@ comp_labels <- tibble(
   }))
 
 # ooops - forgot to calculate percs as % successful!
+tot_prop <- wave2_data %>% 
+  transmute(serv_acc = ServAcc2_w2,
+    serv_barr = ServTry4_w2,
+    Total = Total, 
+    weight2 = weight2) %>% 
+  summarise(wt = round(sum(weight2), 0), 
+            n = n(),
+            `Successfully accessed services` = sum(weight2[serv_acc == "Yes"], na.rm = TRUE)/sum(weight2, na.rm = TRUE),  
+            `Barriers accessing services` = sum(weight2[serv_barr == "Yes"], na.rm = TRUE)/sum(weight2, na.rm = TRUE))  %>% 
+  pivot_longer(-c(n, wt), names_to = "outcome", values_to = "prop") %>% 
+  mutate(denom = paste0(wt, ", ", n),
+         aOR = " ", 
+         CI = " ",
+         Cat = "Total", Comparison = "Total")
 
 serv_acc_ors %>% 
   mutate(outcome = "Successfully accessed services") %>% 
   bind_rows(mutate(serv_barr_ors, outcome = "Barriers accessing services")) %>% 
+  bind_rows(tot_prop, .) %>% 
   group_by(Comparison, outcome) %>% 
   mutate(ul_p = perc_ci(prop, "u", sum(wt)),
          ll_p = perc_ci(prop, "l", sum(wt)),
