@@ -180,7 +180,7 @@ unadj_lin <- preg_dataset %>%
          coef = str_remove(coef, "^Cat"),
          P = case_when(
            p < 0.001 ~  "<0.001",
-           TRUE ~ as.character(round(p, 3))
+           TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
          ))
 
 adj_lin <- preg_dataset %>% 
@@ -197,7 +197,7 @@ adj_lin <- preg_dataset %>%
          coef = str_remove(coef, "^Cat"),
          P = case_when(
            p < 0.001 ~  "<0.001",
-           TRUE ~ as.character(round(p, 3))
+           TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
          ))
 
 
@@ -229,7 +229,7 @@ scores_denoms <- preg_dataset %>%
             wt = sum(weight2),
             n = n(),
             .groups = "keep")  %>% 
-  transmute(`Mean LMUP Score (SD)` = paste0(round(mean_sc, 1), " (", round(sd_sc, 1), ")"),
+  transmute(`Mean LMUP Score (SD)` = paste0(sprintf("%.1f", round(mean_sc, 1)), " (", sprintf("%.1f", round(sd_sc, 1)), ")"),
             `Denominator (weighted, unweighted)` = paste0(round(wt, 0), ", ", round(n, 0))) %>% 
   ungroup() %>% 
   left_join(comp_labels, by = "Comparison") %>% 
@@ -324,7 +324,7 @@ all_preg_perc %>%
   mutate(across(everything(), ~ ifelse(str_detect(.x, "NaN"), NA, .x))) %>%
   mutate(across(everything(), .fns = replace_na, "-")) %>%
   mutate(across(ends_with("CI"), ~str_replace_all(.x, " ", "\u00A0"))) %>% 
-  mutate(across(ends_with("CI"), ~str_replace_all(.x, "-", "-\uFEFF"))) %>% 
+  mutate(across(ends_with("CI"), ~str_replace_all(.x, "-(?=.)", "-\uFEFF"))) %>% 
   pivot_longer(
     -c(1:2, label),
     names_to = c("outcome", "met"),
@@ -485,6 +485,15 @@ all_preg_perc %>%
   tab_spanner_delim("_") 
             
 
+# mean LMUP scores --------------------------------------------------------
+
+wave2_data %>% 
+  filter(!is.na(D_LMUPScore_w2)) %>% 
+  mutate(preg_when = if_else(D_Preg1yr_w2 == "Yes", "last year", "1-5 yrs")) %>% 
+  group_by(preg_when) %>% 
+  summarise(mean_sc = weighted.mean(D_LMUPScore_w2, w = weight2, na.rm = TRUE),
+            # sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
+            sd_sc = sqrt(Hmisc::wtd.var(D_LMUPScore_w2, weights = weight2, na.rm = TRUE)))
 
 # joining tables pregnancy-unplanned ORs ----------------------------------
 
