@@ -183,7 +183,7 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )  %>% 
+  )  #%>% 
   gtsave("graphs/Contraception outcomes.html")
 
 wave2_data %>%
@@ -209,8 +209,8 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) %>% 
-  gtsave("graphs/Contraception switching.html")
+  ) #%>% 
+  # gtsave("graphs/Contraception switching.html")
 
 wave2_data %>%
   filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
@@ -234,9 +234,8 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) %>% 
+  ) # %>% 
   gtsave("graphs/Service access.html")
-
 
 
 # stop or switch at all ---------------------------------------------------

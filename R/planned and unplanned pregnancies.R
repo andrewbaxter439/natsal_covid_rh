@@ -306,9 +306,9 @@ all_preg_perc %>%
     `Unplanned pregnancy_%`,
     `Unplanned pregnancy_CI`,
     # `Mean LMUP Score (SD)`,
-    `Pregnancy adjusted Odds ratio_OR`,
-    `Pregnancy adjusted Odds ratio_CI`,
-    `Pregnancy adjusted Odds ratio_p-value`,
+    # `Pregnancy adjusted Odds ratio_OR`,
+    # `Pregnancy adjusted Odds ratio_CI`,
+    # `Pregnancy adjusted Odds ratio_p-value`,
     `Unplanned pregnancy score_Coefficient`,
     `Unplanned pregnancy score_CI`,
     `Unplanned pregnancy score_p-value`,
@@ -326,7 +326,7 @@ all_preg_perc %>%
   mutate(across(ends_with("CI"), ~str_replace_all(.x, " ", "\u00A0"))) %>% 
   mutate(across(ends_with("CI"), ~str_replace_all(.x, "-", "-\uFEFF"))) %>% 
   pivot_longer(
-    3:12,
+    -c(1:2, label),
     names_to = c("outcome", "met"),
     values_to = "val",
     names_sep = "_"
@@ -338,7 +338,7 @@ all_preg_perc %>%
   ) %>%
   mutate(
     `% (CI)` = paste(`%`, CI),
-    `OR (CI)` = paste(OR, CI),
+    # `OR (CI)` = paste(OR, CI),
     `Coefficient (CI)` = paste(Coefficient, CI),
     across(everything(), ~str_replace_all(.x, "- -", "-")),
     across(everything(), ~str_replace_all(.x, "0.0 -", "0"))
@@ -347,7 +347,7 @@ all_preg_perc %>%
     id_cols = c(` `, `  `, label),
     names_from = outcome,
     values_from = c(`% (CI)`,
-                    `OR (CI)`,
+                    # `OR (CI)`,
                     `Coefficient (CI)`,
                     `p-value`),
     names_glue = "{outcome}_{.value}"
@@ -360,8 +360,8 @@ all_preg_perc %>%
     `Pregnancy in last year_% (CI)`,
     `Of which unplanned_% (CI)` = `Unplanned pregnancy_% (CI)`,
     `Mean LMUP Score (SD)`,
-    `Pregnancy adjusted Odds ratio_OR (CI)`,
-    `Pregnancy adjusted Odds ratio_p-value`,
+    # `Pregnancy adjusted Odds ratio_OR (CI)`,
+    # `Pregnancy adjusted Odds ratio_p-value`,
     `Difference in LMUP Score_Coefficient (CI)` = `Unplanned pregnancy score_Coefficient (CI)`,
     `Difference in LMUP Score_p-value` = `Unplanned pregnancy score_p-value`,
     `Denominator (weighted, unweighted)`
