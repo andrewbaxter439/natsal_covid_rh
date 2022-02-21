@@ -398,6 +398,7 @@ robust_glm <- function(df, formula, weights) {
 }
 
 
+
 robust_lm <-
   function(df,
            formula,
@@ -422,7 +423,7 @@ robust_lm <-
     }
     
     if (global_p) {
-      p <- anova(mod)[1, 5]
+      glob_p <- anova(mod)[1, 5]
       
       tibble(
         coef = names(coef(mod)),
@@ -433,7 +434,10 @@ robust_lm <-
         ll = est - 1.96 * se,
         ul = est + 1.96 * se
       ) %>%
-        add_row(tibble(est = p))
+        add_row(tibble(
+          coef = "glob_p",
+          p = glob_p
+        ))
       
     } else {
       tibble(
@@ -448,6 +452,52 @@ robust_lm <-
     }
   }
 
+robust_svy_lm <-
+  function(lm_data,
+           formula,
+           weights,
+           verbose = FALSE) {
+    
+    require(rlang)
+    require(sandwich)
+    require(dplyr)
+    require(survey)
+    
+    df <- as.data.frame(lm_data)
+    des <<- svydesign(id = ~1, weights = ~weight2, data = df)
+    
+    # print(des)
+    
+    mod <-
+      svyglm(
+        formula,
+        design = des,
+        rescale = TRUE
+      )
+    
+    # se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+    
+    if (verbose) {
+      print(summary(mod))
+    }
+    
+      glob_p <- anova(mod)[[1]]$p
+      
+      tibble(
+        coef = names(coef(mod)),
+        est = coef(mod),
+        p = 0
+      ) %>%
+        bind_cols(as_tibble(confint(mod))) %>% 
+        select(coef, est, p, "ll" = 4, "ul" = 5) %>% 
+        add_row(tibble(
+          coef = "glob_p",
+          p = glob_p
+        ))
+      
+  }
+
+robust_svy_lm(lm_data = preg_dataset %>% filter(!is.na(Preg_unpl)), formula = D_LMUPScore_w2 ~ CondomAcc_w2 + D_Age5Cat_w2, weights = weight2)
 
 return_ORs <- function(df, formula, weights) {
   

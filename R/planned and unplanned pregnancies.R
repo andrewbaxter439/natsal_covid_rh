@@ -173,7 +173,7 @@ unadj_lin <- preg_dataset %>%
   mutate(inv_score = D_LMUPScore_w2, .keep = "unused") %>% 
   group_by(Comparison) %>% 
   nest() %>% 
-  mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat, weight2))) %>% 
+  mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat, weight2, global_p = TRUE))) %>% 
   unnest(mod) %>% 
   mutate(est = sprintf("%.2f", round(est, 2)), 
          CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
@@ -190,7 +190,7 @@ adj_lin <- preg_dataset %>%
   mutate(inv_score = D_LMUPScore_w2, .keep = "unused") %>% 
   group_by(Comparison) %>% 
   nest() %>% 
-  mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat + D_Age5Cat_w2, weight2))) %>% 
+  mutate(mod = map(data, ~ robust_svy_lm(.x, inv_score ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   unnest(mod) %>% 
   mutate(adj_est = sprintf("%.2f", round(est, 2)), est = NULL,
          CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
@@ -233,6 +233,7 @@ scores_denoms <- preg_dataset %>%
             `Denominator (weighted, unweighted)` = paste0(round(wt, 0), ", ", round(n, 0))) %>% 
   ungroup() %>% 
   left_join(comp_labels, by = "Comparison") %>% 
+  unique() %>% 
   select(-Comparison)
 
 
@@ -273,6 +274,10 @@ all_preg_perc %>%
       )),
     by = c("Comparison", "Cat")
   ) %>% 
+  bind_rows(comp_labels %>% 
+              filter(Comparison != "Total") %>% 
+              mutate(Cat = "glob_p") %>% 
+              select(-label)) %>% 
   left_join(
     bind_rows(
       unadj_lin %>% 
@@ -353,17 +358,23 @@ all_preg_perc %>%
     names_glue = "{outcome}_{.value}"
   ) %>% 
   left_join(scores_denoms, by = c(`  ` = "Cat", "label")) %>% 
+  mutate(label = fct_inorder(label)) %>% 
+  arrange(label) %>% 
+  mutate(`Unplanned pregnancy score_p-value` = if_else(`Unplanned pregnancy score_p-value` == "<0.001", "p<0.001", paste0("p=", `Unplanned pregnancy score_p-value`)),
+         `Unplanned pregnancy score_Coefficient (CI)` = if_else(`  ` == "glob_p", `Unplanned pregnancy score_p-value`, `Unplanned pregnancy score_Coefficient (CI)`),
+         across(-c(label, `Unplanned pregnancy score_Coefficient (CI)`), ~if_else(`  ` == "glob_p", " ", .x))) %>% 
   select(
     ` `,
     `  `,
     label,
-    `Pregnancy in last year_% (CI)`,
-    `Of which unplanned_% (CI)` = `Unplanned pregnancy_% (CI)`,
+    `Pregnancy in last year\n% (CI)` = `Pregnancy in last year_% (CI)`,
+    `Of which unplanned\n% (CI)` = `Unplanned pregnancy_% (CI)`,
     `Mean LMUP Score (SD)`,
     # `Pregnancy adjusted Odds ratio_OR (CI)`,
     # `Pregnancy adjusted Odds ratio_p-value`,
-    `Difference in LMUP Score_Coefficient (CI)` = `Unplanned pregnancy score_Coefficient (CI)`,
-    `Difference in LMUP Score_p-value` = `Unplanned pregnancy score_p-value`,
+    # `Difference in LMUP Score_Coefficient (CI)` = `Unplanned pregnancy score_Coefficient (CI)`,
+    `Age-adjusted difference in mean LMUP score (CI)` = `Unplanned pregnancy score_Coefficient (CI)`,
+    # `Difference in LMUP Score_p-value` = `Unplanned pregnancy score_p-value`,
     `Denominator (weighted, unweighted)`
   ) %>% 
   gt(groupname_col = "label", rowname_col = " ") %>%
@@ -871,6 +882,7 @@ preg_perc %>% select(
 library(survey)
 
 svy_d <- preg_dataset %>%
+  filter(!is.na(Preg_unpl)) %>%
 svydesign(id = ~1, weights = ~weight2, data = .)
 
 preg_dataset %>%
@@ -889,6 +901,8 @@ preg_dataset %>%
   robust_glm(Preg_unpl ~ D_SexIDL_w2 + D_Age5Cat_w2, weights = weight2)
 
 
+svyglm(D_LMUPScore_w2 ~ D_SexIDL_w2 +  D_Age5Cat_w2, design = svy_d) %>% summary
+svyglm(D_LMUPScore_w2 ~ D_SexIDL_w2 +  D_Age5Cat_w2, design = svy_d) %>% anova(test = "F", method = "Wald")
 
 
 svyglm(Preg_unpl ~ D_SexIDL_w2,
