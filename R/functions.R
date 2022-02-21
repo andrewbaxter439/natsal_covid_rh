@@ -397,33 +397,56 @@ robust_glm <- function(df, formula, weights) {
   )
 }
 
-robust_lm <- function(df, formula, weights, verbose = FALSE) {
-  require(rlang)
-  require(sandwich)
-  
-  mod <-
-    eval_tidy(quo(lm(
-      formula,
-      data = df,
-      weights = !!substitute(weights)
-    )))
+
+robust_lm <-
+  function(df,
+           formula,
+           weights,
+           verbose = FALSE,
+           global_p = FALSE) {
+    require(rlang)
+    require(sandwich)
+    require(dplyr)
     
-  se <- sqrt(diag(vcovHC(mod, type = "HC0")))
-  
-  if(verbose) {
-    print(summary(mod))
+    mod <-
+      eval_tidy(quo(lm(
+        formula,
+        data = df,
+        weights = !!substitute(weights)
+      )))
+    
+    se <- sqrt(diag(vcovHC(mod, type = "HC0")))
+    
+    if (verbose) {
+      print(summary(mod))
+    }
+    
+    if (global_p) {
+      p <- anova(mod)[1, 5]
+      
+      tibble(
+        coef = names(coef(mod)),
+        est = coef(mod),
+        se_robust = se,
+        z = est / se,
+        p = 2 * pnorm(abs(z), lower.tail = FALSE),
+        ll = est - 1.96 * se,
+        ul = est + 1.96 * se
+      ) %>%
+        add_row(tibble(est = p))
+      
+    } else {
+      tibble(
+        coef = names(coef(mod)),
+        est = coef(mod),
+        se_robust = se,
+        z = est / se,
+        p = 2 * pnorm(abs(z), lower.tail = FALSE),
+        ll = est - 1.96 * se,
+        ul = est + 1.96 * se
+      )
+    }
   }
-  
-  tibble::tibble(
-    coef = names(coef(mod)),
-    est = coef(mod),
-    se_robust = se,
-    z = est / se,
-    p = 2 * pnorm(abs(z), lower.tail = FALSE),
-    ll = est - 1.96 * se,
-    ul = est + 1.96 * se
-  )
-}
 
 
 return_ORs <- function(df, formula, weights) {
