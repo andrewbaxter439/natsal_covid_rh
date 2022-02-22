@@ -481,7 +481,8 @@ robust_svy_lm <-
       print(summary(mod))
     }
     
-      glob_p <- anova(mod, method = "Wald")[[1]]$p
+      # glob_p <- anova(mod, method = "Wald")[[1]]$p
+      glob_p <- regTermTest(mod, str_extract(as.character(formula)[3], "^\\w*"), method = "Wald", df = 197)$p
       
       tibble(
         coef = names(coef(mod)),

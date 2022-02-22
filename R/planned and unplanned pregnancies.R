@@ -173,7 +173,7 @@ unadj_lin <- preg_dataset %>%
   mutate(inv_score = D_LMUPScore_w2, .keep = "unused") %>% 
   group_by(Comparison) %>% 
   nest() %>% 
-  mutate(mod = map(data, ~ robust_lm(.x, inv_score ~ Cat, weight2, global_p = TRUE))) %>% 
+  mutate(mod = map(data, ~ robust_svy_lm(.x, inv_score ~ Cat, weight2))) %>% 
   unnest(mod) %>% 
   mutate(est = sprintf("%.2f", round(est, 2)), 
          CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
