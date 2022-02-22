@@ -481,7 +481,7 @@ robust_svy_lm <-
       print(summary(mod))
     }
     
-      glob_p <- anova(mod)[[1]]$p
+      glob_p <- anova(mod, method = "Wald")[[1]]$p
       
       tibble(
         coef = names(coef(mod)),
@@ -563,7 +563,7 @@ return_svy_ORs <- function(df, formula, weights) {
       family = binomial("logit"))
     ), data = df)
   
-  glob_p <- anova(mod)[[1]]$p
+  glob_p <- anova(mod, method = "Wald")[[1]]$p
   
   mod_return <- tibble(
     coef = names(coef(mod)),
@@ -596,7 +596,7 @@ return_svy_ORs <- function(df, formula, weights) {
            CI = paste0("(", sprintf("%.2f", round(exp(ll), 2)), ", ", sprintf("%.2f", round(exp(ul), 2)), ")"),
            P = case_when(
              p < 0.001 ~  "<0.001",
-             TRUE ~ as.character(round(p, 3))
+             TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
            )) %>% 
     bind_rows(tibble(Cat = str_remove_all(cats[[1]], "\\\\"), est = 1), .)
   

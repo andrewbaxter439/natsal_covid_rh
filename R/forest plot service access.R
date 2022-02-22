@@ -104,7 +104,8 @@ serv_acc_ors <-
     CI = if_else(est == 1, "(ref)", CI),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom) %>% 
+  mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "<0.001", P))
 
 
 
@@ -176,7 +177,8 @@ serv_barr_ors <- serv_acc_data %>%
     ),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom) %>% 
+  mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "0.055", P))
 
 
   # mutate(mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
@@ -242,7 +244,7 @@ draw_forest_table <-  function() {
   require(dplyr)
   
     forest1 <- serv_acc_disp %>%
-      # filter(Coefficient == coefficient) %>%
+      filter(Comparison != "Total") %>%
       ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
       geom_vline(xintercept = 1,
                  colour = "darkgrey",
@@ -275,6 +277,7 @@ draw_forest_table <-  function() {
     
 
 forest2 <- serv_barr_disp %>%
+      filter(Comparison != "Total") %>%
       # filter(Coefficient == coefficient) %>%
       ggplot(aes(OR, fct_rev(Cat), alpha = show)) +
       geom_vline(xintercept = 1,
@@ -443,16 +446,22 @@ tot_prop <- wave2_data %>%
 
 serv_acc_ors %>% 
   mutate(outcome = "Successfully accessed services") %>% 
+  # select(-P) %>% 
+  # filter(Cat != "glob_p") %>% 
+  # left_join(serv_acc_ors %>% select(Comparison, Cat, P) %>% )
   bind_rows(mutate(serv_barr_ors, outcome = "Barriers accessing services")) %>% 
   bind_rows(tot_prop, .) %>% 
   group_by(Comparison, outcome) %>% 
-  mutate(ul_p = perc_ci(prop, "u", sum(wt)),
-         ll_p = perc_ci(prop, "l", sum(wt)),
+  mutate(ul_p = perc_ci(prop, "u", sum(wt, na.rm = TRUE)),
+         ll_p = perc_ci(prop, "l", sum(wt, na.rm = TRUE)),
          `aOR (CI)` = paste(aOR, CI),
          `% (CI)` = paste0(sprintf("%.1f", round(100*prop, 1)), " (", sprintf("%.1f", round(100*ll_p, 1)), ", ",
                            sprintf("%.1f", round(100*ul_p, 1)), ")"
                            ),
+         P = ifelse(Comparison == "Total"|CI!="(ref)", "-", P[Cat == "glob_p"]),
+         # glob_p = P[Cat == "glob_p"],
          Denominator = denom) %>% 
+  filter(Cat != "glob_p") %>% 
   select(Comparison, `  ` = Cat, `% (CI)`, `aOR (CI)`, P, Denominator, outcome) %>% 
   pivot_wider(names_from = outcome, values_from = c(`% (CI)`, `aOR (CI)`, P, Denominator),
               names_glue = "{outcome}_{.value}") %>% 
