@@ -564,7 +564,8 @@ return_svy_ORs <- function(df, formula, weights) {
       family = binomial("logit"))
     ), data = df)
   
-  glob_p <- anova(mod, method = "Wald")[[1]]$p
+  # glob_p <- anova(mod, method = "Wald")[[1]]$p
+  glob_p <- regTermTest(mod, str_extract(as.character(formula)[3], "^\\w*"), method = "Wald", df = 1475)$p
   
   mod_return <- tibble(
     coef = names(coef(mod)),
@@ -603,11 +604,11 @@ return_svy_ORs <- function(df, formula, weights) {
   
 }
 
-return_svy_ORs(serv_acc_data %>%
+return_svy_ORs(df = serv_acc_data %>%
                  select(-serv_barr) %>%
                  filter(!is.na(serv_acc)) %>% 
                  mutate(Cat  = D_EthnicityCombined_w2),
-               serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, 
+               formula = serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, 
                weights = weight2)
 
 

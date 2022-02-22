@@ -104,8 +104,8 @@ serv_acc_ors <-
     CI = if_else(est == 1, "(ref)", CI),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom) %>% 
-  mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "<0.001", P))
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)  
+  # mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "<0.001", P))
 
 
 
@@ -177,8 +177,8 @@ serv_barr_ors <- serv_acc_data %>%
     ),
     denom = paste0(wt, ", ", n)
   ) %>%
-  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom) %>% 
-  mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "0.055", P))
+  select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom) # %>% 
+  # mutate(P = if_else(Cat == "glob_p" & Comparison == "D_Age5Cat_w2", "0.055", P))
 
 
   # mutate(mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
