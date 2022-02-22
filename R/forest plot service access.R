@@ -75,7 +75,7 @@ serv_acc_ors <-
                values_to = "Cat") %>%
   nest(-Comparison) %>%
   mutate(
-    mod_serv_acc = map(data, ~ return_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2)),
+    mod_serv_acc = map(data, ~ return_svy_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
       ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_acc == "Yes"], na.rm = TRUE)/wt)
@@ -88,7 +88,7 @@ serv_acc_ors <-
   bind_rows(
     serv_acc_data %>%
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
-      return_ORs(serv_acc ~ Cat, weight2) %>%
+      return_svy_ORs(serv_acc ~ Cat, weight2) %>%
       left_join(
         group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_acc == "Yes"], na.rm = TRUE)/wt) %>% mutate(Cat = D_Age5Cat_w2)
       ) %>%
@@ -108,17 +108,30 @@ serv_acc_ors <-
 
 
 
-serv_acc_disp <- comp_labels %>%
+serv_acc_disp <-
+  comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
-  bind_rows(serv_acc_ors %>% select(-wt, -n)) %>% 
+  left_join(serv_acc_ors %>% filter(Cat == "glob_p") %>% select(Comparison, P), by = "Comparison") %>% 
+  bind_rows(serv_acc_ors %>% select(-wt, -n) %>% filter(Cat != "glob_p")) %>% 
   mutate(Comparison = fct_inorder(Comparison)) %>% 
+  # arrange(Cat) %>% 
   # arrange(Comparison) %>% 
-  mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
+  # To do: Make CI for glob_p, clear all other parts, make glob_p base in factor
+  mutate(
+    # OR = ifelse(Cat == "glob_p", 0, OR),
+    # Cat = if_else(Cat == "glob_p", " ", Cat),
+    across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          show = if_else(is.na(OR), 0, 1),
          empty = if_else(aOR == "0", NA_character_, "black"),
          across(where(is.numeric), ~if_else(is.na(OR)&is.na(.x), 1, .x)),
-         Cat = fct_inorder(Cat))
+         Cat = fct_inorder(Cat),
+    P = case_when(str_detect(P, "^0") ~ paste0("p=", P),
+                  str_detect(P, "^<") ~ paste0("p", P),
+                  TRUE ~ P),
+    aOR = if_else(aOR == " ", P, aOR)
+    ) %>% 
+  arrange(Comparison, Cat)
 
 serv_barr_ors <- serv_acc_data %>% 
   select(-serv_acc) %>% 
@@ -126,7 +139,7 @@ serv_barr_ors <- serv_acc_data %>%
   pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
   nest(-Comparison) %>% 
   mutate(
-    mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
+    mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
       ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"])/sum(weight2))
@@ -139,7 +152,7 @@ serv_barr_ors <- serv_acc_data %>%
   bind_rows(
     serv_acc_data %>%
       mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
-      return_ORs(serv_barr ~ Cat, weight2) %>%
+      return_svy_ORs(serv_barr ~ Cat, weight2) %>%
       left_join(
         group_by(serv_acc_data, D_Age5Cat_w2) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[serv_barr == "Yes"], na.rm = TRUE)/wt) %>% mutate(Cat = D_Age5Cat_w2)
       ) %>%
@@ -166,12 +179,12 @@ serv_barr_ors <- serv_acc_data %>%
   select(Comparison, Cat, OR, ll, ul, CI, aOR, P, prop, wt, n, denom)
 
 
-  # mutate(mod_serv_barr = map(data, ~ return_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
+  # mutate(mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2))) %>% 
   # unnest(mod_serv_barr) %>% 
   # bind_rows(
   #   serv_acc_data %>%
   #     mutate(Cat = fct_rev(D_Age5Cat_w2)) %>%
-  #     return_ORs(serv_barr ~ Cat, weight2) %>%
+  #     return_svy_ORs(serv_barr ~ Cat, weight2) %>%
   #     mutate(Comparison = "D_Age5Cat_w2") %>% 
   #     arrange(Cat),
   #   .
@@ -199,14 +212,20 @@ serv_barr_ors <- serv_acc_data %>%
 serv_barr_disp <- comp_labels %>%
   filter(Comparison != "CondomAcc_w2", Comparison != "D_ConServAcc_w2") %>% 
   transmute(Cat = label, Comparison) %>% 
-  bind_rows(serv_barr_ors %>% select(-wt, -n)) %>% 
+  left_join(serv_barr_ors %>% filter(Cat == "glob_p") %>% select(Comparison, P), by = "Comparison") %>% 
+  bind_rows(serv_barr_ors %>% select(-wt, -n) %>% filter(Cat != "glob_p")) %>% 
   mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          empty = if_else(aOR == "0", NA_character_, "black"),
          show = if_else(is.na(OR), 0, 1),
          across(where(is.numeric), ~if_else(is.na(OR)&is.na(.x), 1, .x)),
-         Cat = fct_inorder(Cat))
+         Cat = fct_inorder(Cat),
+         P = case_when(str_detect(P, "^0") ~ paste0("p=", P),
+                       str_detect(P, "^<") ~ paste0("p", P),
+                       TRUE ~ P),
+         aOR = if_else(aOR == " ", P, aOR)
+         )
 
 draw_forest_table() 
 
@@ -331,6 +350,7 @@ forest2 <- serv_barr_disp %>%
     
     lab2 <- base_plot +
       geom_text(aes(label = paste(aOR, CI)),
+                fontface = if_else(str_detect(serv_acc_disp$aOR, "^p"), "italic", "plain"),
                 hjust = 0,
                 vjust = 0.3,
                 size = pts(9)) +
@@ -339,6 +359,7 @@ forest2 <- serv_barr_disp %>%
     
     lab3 <- base_plot +
       geom_text(data = serv_barr_disp, aes(label = paste(aOR, CI)),
+                fontface = if_else(str_detect(serv_barr_disp$aOR, "^p"), "italic", "plain"),
                 hjust = 0,
                 vjust = 0.3,
                 size = pts(9)) +

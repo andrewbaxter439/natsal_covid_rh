@@ -486,7 +486,7 @@ robust_svy_lm <-
       tibble(
         coef = names(coef(mod)),
         est = coef(mod),
-        p = 0
+        p = summary(mod)$coefficients[,4]
       ) %>%
         bind_cols(as_tibble(confint(mod))) %>% 
         select(coef, est, p, "ll" = 4, "ul" = 5) %>% 
@@ -497,7 +497,16 @@ robust_svy_lm <-
       
   }
 
-robust_svy_lm(lm_data = preg_dataset %>% filter(!is.na(Preg_unpl)), formula = D_LMUPScore_w2 ~ CondomAcc_w2 + D_Age5Cat_w2, weights = weight2)
+robust_svy_lm(lm_data = preg_dataset %>% filter(!is.na(Preg_unpl)), formula = D_LMUPScore_w2 ~ qsg + D_Age5Cat_w2, weights = weight2)
+
+svy_d <- serv_acc_data %>%
+  select(-serv_barr) %>%
+  filter(!is.na(serv_acc)) %>% 
+  svydesign(id = ~1, weights = ~weight2, data = .)
+
+svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% coefficients %>% exp
+svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% confint %>% exp
+svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% anova
 
 return_ORs <- function(df, formula, weights) {
   
@@ -538,6 +547,69 @@ return_ORs <- function(df, formula, weights) {
     bind_rows(tibble(Cat = str_remove_all(cats[[1]], "\\\\"), est = 1), .)
   
 }
+
+return_svy_ORs <- function(df, formula, weights) {
+  
+  des <<- svydesign(id = ~1, weights = ~weight2, data = df)
+  
+  cats <- levels(fct_drop(df$Cat))  %>% str_replace_all("(\\(|\\))", "\\\\\\1")
+  require(rlang)
+  require(sandwich)
+  
+  mod <-
+    eval_tidy(quo(svyglm(
+      formula,
+      design = des,
+      family = binomial("logit"))
+    ), data = df)
+  
+  glob_p <- anova(mod)[[1]]$p
+  
+  mod_return <- tibble(
+    coef = names(coef(mod)),
+    est = coef(mod),
+    p = summary(mod)$coefficients[,4]
+  ) %>%
+    bind_cols(as_tibble(confint(mod))) %>% 
+    select(coef, est, p, "ll" = 4, "ul" = 5) %>% 
+    add_row(tibble(
+      coef = "glob_p",
+      p = glob_p
+    ))
+  
+  
+  # mod_return <- tibble::tibble(
+  #   coef = names(coef(mod)),
+  #   est = coef(mod),
+  #   se_robust = se,
+  #   z = est / se,
+  #   p = 2 * pnorm(abs(z), lower.tail = FALSE),
+  #   ll = est - 1.96 * se,
+  #   ul = est + 1.96 * se
+  # )
+  
+  mod_return %>% filter(
+    !str_detect(coef, "(Intercept|D_Age)")
+  ) %>% 
+    mutate(Cat = str_extract(coef, paste0("(", paste(c(cats, "glob_p"), collapse = "|"),")"))) %>% 
+    mutate(aOR = sprintf("%.2f", round(exp(est), 2)),
+           CI = paste0("(", sprintf("%.2f", round(exp(ll), 2)), ", ", sprintf("%.2f", round(exp(ul), 2)), ")"),
+           P = case_when(
+             p < 0.001 ~  "<0.001",
+             TRUE ~ as.character(round(p, 3))
+           )) %>% 
+    bind_rows(tibble(Cat = str_remove_all(cats[[1]], "\\\\"), est = 1), .)
+  
+}
+
+return_svy_ORs(serv_acc_data %>%
+                 select(-serv_barr) %>%
+                 filter(!is.na(serv_acc)) %>% 
+                 mutate(Cat  = D_EthnicityCombined_w2),
+               serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, 
+               weights = weight2)
+
+
 
 perc_ci <- function(perc, lim = "l", n = n()) {
   p_t <- log(perc/(1-perc))
