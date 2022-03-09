@@ -24,6 +24,7 @@ comp_labels <- tibble(
     "D_relstatcatv7_w2",
     "D_PHQ2Cat_w2",
     "D_GAD2Cat_w2",
+    # "ServTry4_w2",
     "D_ConServAcc_w2",
     "CondomAcc_w2")
 ) %>%
@@ -54,6 +55,7 @@ preg_dataset <- wave2_data %>%
          D_PHQ2Cat_w2,
          D_GAD2Cat_w2,
          D_ConServAcc_w2,
+         # ServTry4_w2,
          CondomAcc_w2,
          weight2) %>% 
   mutate(Preg_unpl = case_when(
