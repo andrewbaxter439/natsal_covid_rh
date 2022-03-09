@@ -1,6 +1,7 @@
 library(tidyverse)
 source("R/import and convert.R")
 source("R/functions.R")
+library(survey)
 # library(survey)
 
 pts <- function (size) return(size * 5/14)
@@ -357,7 +358,7 @@ forest2 <- serv_barr_disp %>%
                 hjust = 0,
                 vjust = 0.3,
                 size = pts(9)) +
-      ggtitle("\nOR (CI)")
+      ggtitle("\naOR (CI)")
     
     
     lab3 <- base_plot +
@@ -366,7 +367,7 @@ forest2 <- serv_barr_disp %>%
                 hjust = 0,
                 vjust = 0.3,
                 size = pts(9)) +
-      ggtitle("\nOR (CI)")
+      ggtitle("\naOR (CI)")
     # 
     # 
     # lab1_grob <- ggplotGrob(lab1)
