@@ -498,16 +498,16 @@ robust_svy_lm <-
       
   }
 
-robust_svy_lm(lm_data = preg_dataset %>% filter(!is.na(Preg_unpl)), formula = D_LMUPScore_w2 ~ qsg + D_Age5Cat_w2, weights = weight2)
+# robust_svy_lm(lm_data = preg_dataset %>% filter(!is.na(Preg_unpl)), formula = D_LMUPScore_w2 ~ qsg + D_Age5Cat_w2, weights = weight2)
 
-svy_d <- serv_acc_data %>%
-  select(-serv_barr) %>%
-  filter(!is.na(serv_acc)) %>% 
-  svydesign(id = ~1, weights = ~weight2, data = .)
+# svy_d <- serv_acc_data %>%
+#   select(-serv_barr) %>%
+#   filter(!is.na(serv_acc)) %>% 
+#   svydesign(id = ~1, weights = ~weight2, data = .)
 
-svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% coefficients %>% exp
-svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% confint %>% exp
-svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% anova
+# svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% coefficients %>% exp
+# svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% confint %>% exp
+# svyglm(serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, design = svy_d, family = binomial("logit")) %>% anova
 
 return_ORs <- function(df, formula, weights) {
   
@@ -604,12 +604,12 @@ return_svy_ORs <- function(df, formula, weights) {
   
 }
 
-return_svy_ORs(df = serv_acc_data %>%
-                 select(-serv_barr) %>%
-                 filter(!is.na(serv_acc)) %>% 
-                 mutate(Cat  = D_EthnicityCombined_w2),
-               formula = serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, 
-               weights = weight2)
+# return_svy_ORs(df = serv_acc_data %>%
+#                  select(-serv_barr) %>%
+#                  filter(!is.na(serv_acc)) %>% 
+#                  mutate(Cat  = D_EthnicityCombined_w2),
+#                formula = serv_acc ~ D_EthnicityCombined_w2 + D_Age5Cat_w2, 
+#                weights = weight2)
 
 
 
