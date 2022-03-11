@@ -78,7 +78,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
     ) %>%
     transmute(
       cat = title,
-      Total = paste0(round(w, 0), ", " , n),
+      # Total = paste0(round(w, 0), ", " , n),
       `P-value` = if_else(p < 0.001, "p<0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
     ) %>% 
       pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted, unweighted)") %>% 
@@ -160,7 +160,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
 
 # outputs -----------------------------------------------------------------
 
-
+## Table 2
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
@@ -186,6 +186,7 @@ wave2_data %>%
   )  #%>% 
   gtsave("graphs/Contraception outcomes.html")
 
+## Table S3
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4,
          as.numeric(D_ConPre_w2) != 3) %>% 
@@ -212,6 +213,7 @@ wave2_data %>%
   ) #%>% 
    gtsave("graphs/Contraception switching.html")
 
+## Table S1
 wave2_data %>%
   filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
@@ -306,7 +308,7 @@ wave2_data %>%
 
 # Stop or switch - only those using more effective methods ----------------
 
-
+## Table 3
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4,
          D_ConPreUs_w2 == "More effective method") %>%
