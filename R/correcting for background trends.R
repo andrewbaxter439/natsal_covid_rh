@@ -259,11 +259,11 @@ surv_data_tidy <- conceptions_abortions_yearly %>%
       outcome == "abo_rate" ~ "Abortions",
       outcome == "hiv_test_rate" ~ "HIV testing",
       outcome == "chl_test_rate" ~ "Chlamydia testing",
-      outcome == "clinic_attendance" ~ "Clinic attendance"
+      outcome == "clinic_attendance" ~ "Use of STI-related services"
     ),
     outcome = fct_relevel(
       outcome,
-      "Clinic attendance",
+      "Use of STI-related services",
       "Chlamydia testing",
       "HIV testing",
       "Conceptions",
@@ -285,7 +285,8 @@ natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>%
       "HIV testing",
       "Conceptions",
       "Abortions"
-    )
+    ) %>% 
+      fct_recode("Use of STI-related services" = "Clinic attendance")
   ) 
 
 
@@ -315,41 +316,130 @@ conceptions_abortions_yearly
   theme_sphsu_light() +
   scale_fill_manual(values = c("Men.1" = 0, "Women.1" = 0,
                                 "Men.0" = sphsu_cols("Thistle", names = FALSE), "Women.0" = sphsu_cols("Turquoise", names = FALSE))) +
-  theme(legend.position = "none",
-        strip.background = element_rect(fill = "white", size = 1),
+  theme(strip.background = element_rect(fill = "white", size = 1),
+        legend.position = "none",
         panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
         strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
   facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
 
 
-(natsal_graphs <- natsal_data_tidy %>% 
-  ggplot(aes(year, perc, colour = gender, shape = gender)) +
-  geom_point(size = 2) +
-  geom_linerange(aes(ymin = li, ymax = ui), size = 1, show.legend = FALSE) +
-  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, size = 2) +
-  geom_line(linetype = "dashed") +
-  scale_y_continuous("Percentage", limits = c(0, NA),
-                     labels = scales::label_percent(accuracy = 1, scale = 1), expand = expansion(mult = c(0, 0))) +
-  scale_x_continuous("Year", limits = c(2010, 2020), breaks = seq(2010, 2020, 2)) +
-  scale_colour_manual(name = "Gender",
-                      values = c(
-                        "Men" = sphsu_cols("Thistle", names = FALSE),
-                        "Women" = sphsu_cols("Turquoise", names = FALSE)
-                      ),
-                      guide = guide_legend(override.aes = list(linetype = c(NA,NA), line = c(NA, NA)))) +
-  theme_sphsu_light() +
-  scale_shape_discrete("Gender") +
-  theme(legend.position = "bottom",
-        strip.background = element_rect(fill = "white", size = 1),
-        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
-        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
-  labs(title = "Natsal surveys") +
-  guides(line = guide_legend(override.aes = list(line = c(1,1)))) +
-  facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
+(natsal_graphs <- 
+    natsal_data_tidy %>%
+    ggplot(aes(
+      year,
+      perc,
+      colour = gender,
+      fill = gender,
+      shape = gender,
+      alpha = "Men"
+    )) +
+    geom_point(size = 2) +
+    geom_linerange(aes(ymin = li, ymax = ui),
+                   size = 1,
+                   show.legend = FALSE) +
+    geom_point(
+      data = limit_sets,
+      aes(x = NA_integer_, y = max, alpha = "(2020 points omitted from analysis)"),
+      inherit.aes = FALSE,
+      size = 2
+    ) +
+    geom_line(linetype = "dashed") +
+    scale_shape_manual("Gender", guide = "none", values = c(21, 24)) +
+    scale_y_continuous(
+      "Percentage",
+      limits = c(0, NA),
+      labels = scales::label_percent(accuracy = 1, scale = 1),
+      expand = expansion(mult = c(0, 0))
+    ) +
+    scale_x_continuous("Year",
+                       limits = c(2010, 2020),
+                       breaks = seq(2010, 2020, 2)) +
+    scale_colour_manual(
+      name = "Gender",
+      aesthetics = c("fill", "colour"),
+      values = c(
+        "Men" = sphsu_cols("Thistle", names = FALSE),
+        "Women" = sphsu_cols("Turquoise", names = FALSE)
+      ),
+      guide = guide_legend(
+        override.aes = list(
+          linetype = c(NA, NA),
+          line = c(NA, NA),
+          size = c(2.5, 2.5),
+          shape = c(21, 24),
+          fill = sphsu_cols("Thistle", "Turquoise", names = FALSE)
+        ),
+        title.position = "top",
+        title.hjust = 0.5,
+        label.theme = element_text(size = 10),
+        order = 1
+      )
+    ) +
+    theme_sphsu_light() +
+    theme(
+      legend.position = "bottom",
+      # legend.title.align = "top",
+      legend.box = "vertical",
+      legend.spacing.y = unit(0.1, "cm"),
+      legend.spacing.x = unit(0.1, "cm"),
+      legend.key.height = unit(0.05, "cm"),
+      legend.margin = margin(l = 5, unit = "cm"),
+      # legend.background = element_rect(fill = "grey"),
+      strip.background = element_rect(fill = "white", size = 1),
+      panel.background = element_rect(
+        fill = "white",
+        size = 1,
+        colour = "grey"
+      ),
+      strip.text = element_text(
+        face = "bold",
+        hjust = 0,
+        margin = margin(5, 0, 5, 0)
+      )
+    ) +
+    labs(title = "Natsal surveys") +
+    scale_alpha_manual(
+      name = NULL,
+      # name = "(2020 points omitted)",
+      breaks = c("Men", "(2020 points omitted from analysis)"),
+      values = c(1, 1),
+      guide = guide_legend(
+        override.aes = list(
+          shape = c(21, 24),
+          title.position = "top",
+          alpha = c(1, 1),
+          linetype = c(NA, NA),
+          line = c(NA, NA),
+          size = c(2.5, 2.5),
+          color = sphsu_cols("Thistle", "Turquoise", names = FALSE)
+        ),
+        title.position = "top",
+        title.hjust = 0.5,
+        title.theme = element_text(face = "italic", size = 10),
+        label.theme = element_text(colour = "white", size = 10),
+        order = 2
+      )
+    ) +
+    # guides(line = guide_legend(order = 1),
+    #        alpha = guide_legend(order = 2)) +
+    facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+  )
 
 (surv_graphs + natsal_graphs) / guide_area()  + plot_layout(guides = "collect", heights = c(10, 1))
 
+# Forlorn attempts to rearrange within grobs
+# g <- ggplotGrob(last_plot())
+# 
+# grid.ls(grid.force(g))
+# 
+# p <- editGrob(grid.force(g), "GRID.text.17364", grep = TRUE, gp = gpar(col = "black"))
+# 
+# grid.newpage()
+# grid.draw(p)
+# (surv_graphs + p) / guide_area()  + plot_layout(guides = "collect", heights = c(10, 1))
+
 ggsave("suveillance_comparison_2.png", height = 30, width = 24, units = "cm", dpi = 400)
+ggsave("suveillance_comparison_2.svg", height = 30, width = 24, units = "cm", dpi = 400)
 
   # testing significance - move to rmd? -------------------------------------
 
