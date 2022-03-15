@@ -3,49 +3,66 @@ library(tidyverse)
 library(SPHSUgraphs)
 library(broom)
 
-conceptions2019workbook <- read_excel(file.path("data", "conceptions2019workbook.xlsx"),
-sheet = "Table 1a", skip = 4)
+conceptions2019workbook <-
+  read_excel(
+    file.path("data", "conceptions2019workbook.xlsx"),
+    sheet = "Table 1a",
+    skip = 4
+  )
 
 
-names_rep <- names(conceptions2019workbook) %>% 
-  str_remove("\\..*") %>% 
-  str_remove("1$") %>% 
-  tibble(names = .) %>% 
-  mutate(fixed_names = if_else(names == "", lag(names), names),
-         fixed_names = if_else(names == "", lag(fixed_names), fixed_names),
-         addend = conceptions2019workbook[1,] %>% unlist(use.names = FALSE),
-         full_names = paste(fixed_names, addend, sep = "_") %>% str_remove("(_NA|\\d)$")) %>% 
+names_rep <- names(conceptions2019workbook) %>%
+  str_remove("\\..*") %>%
+  str_remove("1$") %>%
+  tibble(names = .) %>%
+  mutate(
+    fixed_names = if_else(names == "", lag(names), names),
+    fixed_names = if_else(names == "", lag(fixed_names), fixed_names),
+    addend = conceptions2019workbook[1, ] %>% unlist(use.names = FALSE),
+    full_names = paste(fixed_names, addend, sep = "_") %>% str_remove("(_NA|\\d)$")
+  ) %>%
   pull(full_names)
 
 
 conceptions_abortions_yearly <-
-  conceptions2019workbook %>% 
-  `names<-`(names_rep) %>% 
+  conceptions2019workbook %>%
+  `names<-`(names_rep) %>%
   mutate(Year = as.numeric(str_extract(`Year of conception`, "^\\d{4}")), .keep = "unused") %>%
-  filter(!is.na(Year)) %>% 
-  mutate(across(.fns = as.numeric)) %>% 
-  pivot_longer(-Year, names_to = c("Age", "val"), names_sep = "_") %>% 
-  pivot_wider(id_cols = c(Year, Age), names_from = val, values_from = value) %>% 
-  janitor::clean_names() %>% 
-  select(year, age, number = 3, rate = 4, abo_perc = 5) %>% 
-  mutate(pop = number * 1000 / rate,
-         number_corr = if_else(age == "Under 20", number - lag(number) - lag(number, 2), number),
-         pop = if_else(age == "Under 20", pop - lag(pop), pop),
-         abo_n = number * abo_perc / 100,
-         abo_n = if_else(age == "Under 20", abo_n - lag(abo_n) - lag(abo_n, 2), abo_n),
-         group = "surv"
-         ) %>% 
-  filter(str_detect(age, "(Under 20|^\\d{2})")) %>% 
-  group_by(year, group) %>% 
-  # summarise(rate = max(rate) - min(rate), abo_n = max(abo_n) - min(abo_n), pop = max(pop) - min(pop), number = max(number) - min(number)) %>% 
-  #   mutate(con_rate = 1000*number/pop)
-  summarise(con_rate = weighted.mean(1000*number_corr/pop, w = pop),
-            uncorr_rate = weighted.mean(rate, w = pop),
-            abo_rate = weighted.mean(1000*abo_n/pop, w = pop),
-            .groups = "drop") %>% 
-  filter(year >= 2010) %>% 
-  mutate(rel_con_rate = con_rate / con_rate[year==2010],
-         rel_abo_rate = abo_rate / abo_rate[year==2010]) 
+  filter(!is.na(Year)) %>%
+  mutate(across(.fns = as.numeric)) %>%
+  pivot_longer(-Year,
+               names_to = c("Age", "val"),
+               names_sep = "_") %>%
+  pivot_wider(
+    id_cols = c(Year, Age),
+    names_from = val,
+    values_from = value
+  ) %>%
+  janitor::clean_names() %>%
+  select(year,
+         age,
+         number = 3,
+         rate = 4,
+         abo_perc = 5) %>%
+  mutate(
+    pop = number * 1000 / rate,
+    number_corr = if_else(age == "Under 20", number - lag(number) - lag(number, 2), number),
+    pop = if_else(age == "Under 20", pop - lag(pop), pop),
+    abo_n = number * abo_perc / 100,
+    abo_n = if_else(age == "Under 20", abo_n - lag(abo_n) - lag(abo_n, 2), abo_n),
+    group = "surv"
+  ) %>%
+  filter(str_detect(age, "(Under 20|^\\d{2})")) %>%
+  group_by(year, group) %>%
+  summarise(
+    con_rate = weighted.mean(1000 * number_corr / pop, w = pop),
+    uncorr_rate = weighted.mean(rate, w = pop),
+    abo_rate = weighted.mean(1000 * abo_n / pop, w = pop),
+    .groups = "drop"
+  ) %>%
+  filter(year >= 2010) %>%
+  mutate(rel_con_rate = con_rate / con_rate[year == 2010],
+         rel_abo_rate = abo_rate / abo_rate[year == 2010]) 
 
 natsal_preg <- tribble(~group, ~year, ~outcome, ~perc, ~li, ~ui,
                        "natsal", 2010, "Conceptions", 0.146, 0.135, 0.158,
@@ -64,113 +81,18 @@ pregnancy_rates_joined <- conceptions_abortions_yearly %>%
     exp = factor(exp, levels = c("pre_cov", "cov")),
          time = year - 2009)
 
-
-# test graphs ------------------------------------------------------------------
-
-
-conceptions_abortions_yearly %>% 
-  ggplot(aes(year, con_rate)) + 
-  geom_line() + 
-  geom_text(aes(label = round(con_rate, 2)), nudge_y = 0.01, angle = 45) +
-  scale_x_continuous(breaks = 2010:2019) +
-    ylim(0, NA)
-
-conceptions_abortions_yearly %>% 
-ggplot(aes(year, abo_rate)) + 
-  geom_line() + 
-  geom_text(aes(label = round(abo_rate, 2)), nudge_y = 0.01, angle = 45) +
-  scale_x_continuous(breaks = 2010:2019) +
-    ylim(0, NA)
-
-
-# try a linear model ------------------------------------------------------
-
-
-
-pregnancy_rates_joined %>% 
-  lm(perc ~ time + group + exp, data = .) %>% 
-  summary()
-
-mod <- lm(perc ~ time + group + exp, data = pregnancy_rates_joined)
-
-
-tibble(
-  group = "natsal",
-  exp = "pre_cov",
-  year = 2011:2020,
-  time = year - 2009
-) %>%
-  bind_rows(pregnancy_rates_joined) %>%
-  add_row(
-    group = "surv",
-    exp = "pre_cov",
-    year = 2020,
-    time = 11
-  ) %>%
-  mutate(
-    pred = predict(mod, newdata = .),
-    pred_point = if_else(year == 2020 &
-                           exp == "pre_cov", pred, NULL),
-    line = if_else(year < 2020, pred, NULL)
-  ) %>%
-  ggplot(aes(year, col = group)) +
-  geom_point(aes(y = perc), size = 2) +
-  geom_point(aes(y = pred_point, shape = "Predicted\n(unexposed)"), size = 2) +
-  geom_line(aes(y = line)) +
-  scale_shape_manual("", values = c("Predicted\n(unexposed)" = 1, "Observed" = 16)) +
-  scale_x_continuous(breaks = 2010:2020) +
-  theme_sphsu_light() +
-  theme(panel.grid.minor.x = element_blank()) +
-  scale_colour_sphsu(name = "Data", palette = "cool") +
-  geom_vline(aes(xintercept = 2019.5), linetype = "dashed") +
-  scale_y_continuous(
-    "Conceptions",
-    labels = scales::percent_format(accuracy = 1),
-    limits = c(0, NA)
-  )
-
-as_tibble(confint(mod), rownames = NA) %>%
-  rownames_to_column("term") %>%
-  right_join(tidy(mod)) %>%
-  transmute(
-    Term = if_else(term == "(Intercept)", "2010 base rate", term),
-    `Percentage (point change)` = estimate,
-    `95%CI` = paste0("(", signif(`2.5 %`, 3), ", ", signif(`97.5 %`, 3), ")"),
-    P = if_else(p.value < 0.001, "p<0.001", as.character(round(p.value, 3)))
-  ) %>%
-  gt::gt()
-
-
-
-# as an odds ratio? -------------------------------------------------------
-
-pregnancy_rates_joined %>%
-  mutate(
-    odds = perc / (1 - perc),
-    lnodds = log(odds),
-    group = factor(group, levels = c("surv", "natsal"))
-  ) %>%
-  lm(lnodds ~ time + group + exp, data = .) %>%
-  broom::tidy() %>%
-  mutate(OR = exp(estimate))
-
-
-  
-  
-
-
 # importing Chlamydia data ------------------------------------------------
 
 
 
-gum_clinic <-  read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
+gum_clinic <-  read_excel("data/Attendance and testing rates_updated.xlsx", 
                           sheet = "STI-related_consultations")
                           # sheet = "SHC_Consultations")
 
-hiv_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
+hiv_testing <- read_excel("data/Attendance and testing rates_updated.xlsx", 
                           sheet = "HIV_test")
 
-chl_testing <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/Attendance and testing rates_updated.xlsx", 
+chl_testing <- read_excel("data/Attendance and testing rates_updated.xlsx", 
                           sheet = "CT_test")
 
 
@@ -214,7 +136,7 @@ library(patchwork)
 # full abortions stats ----------------------------------------------------
 
 library(readxl)
-abortions_2010_2020 <- read_excel("C:/local/OneDrive - University of Glasgow/R Studio - home folder/Natsal-Covid/data/abortions_2010_2020.xlsx")
+abortions_2010_2020 <- read_excel("data/abortions_2010_2020.xlsx")
 
 abortions_yearly <- abortions_2010_2020 %>% 
   filter(!(Age %in% c("All ages", "Under 16", "16-17", "Under 18"))) %>% 
@@ -291,36 +213,76 @@ natsal_data_tidy <-   bind_rows(natsal_preg, natsal_abo) %>%
 
 
 
-limit_sets <- left_join(surv_data_tidy, natsal_data_tidy, by = c("year", "outcome", "gender")) %>% 
-  group_by(outcome) %>% 
-  summarise(max = max(rate, ui, na.rm = TRUE)*1.1)
 
+limit_sets <-
+  left_join(surv_data_tidy,
+            natsal_data_tidy,
+            by = c("year", "outcome", "gender")) %>%
+  group_by(outcome) %>%
+  summarise(max = max(rate, ui, na.rm = TRUE) * 1.1)
 
 
 conceptions_abortions_yearly
 # making graphs -----------------------------------------------------------
 
 
-(surv_graphs <- surv_data_tidy %>% 
-  # filter(year < 2020) %>% 
-  ggplot(aes(time, rate, colour = gender, shape = gender, fill = interaction(gender, covid))) +
-  geom_point(size = 2) +
-  geom_smooth(method = "lm", se = FALSE) +
-  geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
-  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0)), labels = scales::label_number(accuracy = 1)) +
-  scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
-  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
-  # scale_shape_discrete(name = "Gender") +
-  labs(title = "Surveillance data") +
-  scale_shape_manual("Gender", values = c("Men" = 21, "Women" = 24)) +
-  theme_sphsu_light() +
-  scale_fill_manual(values = c("Men.1" = 0, "Women.1" = 0,
-                                "Men.0" = sphsu_cols("Thistle", names = FALSE), "Women.0" = sphsu_cols("Turquoise", names = FALSE))) +
-  theme(strip.background = element_rect(fill = "white", size = 1),
-        legend.position = "none",
-        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
-        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
-  facet_wrap(~ outcome, ncol = 1, scales = "free_y"))
+(
+  surv_graphs <- surv_data_tidy %>%
+    # filter(year < 2020) %>%
+    ggplot(
+      aes(
+        time,
+        rate,
+        colour = gender,
+        shape = gender,
+        fill = interaction(gender, covid)
+      )
+    ) +
+    geom_point(size = 2) +
+    geom_smooth(method = "lm", se = FALSE)+
+    geom_point(data = limit_sets, aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
+    scale_y_continuous(
+      "Rate per 100",
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0)),
+      labels = scales::label_number(accuracy = 1)
+    ) +
+    scale_x_continuous(
+      "Year",
+      limits = c(1, 11),
+      breaks = seq(1, 11, 2),
+      labels = seq(2010, 2020, 2)
+    ) +
+    scale_colour_manual(name = "Gender",
+                        values = c(
+                          "Men" = sphsu_cols("Thistle", names = FALSE),
+                          "Women" = sphsu_cols("Turquoise", names = FALSE)
+                        )) +
+    # scale_shape_discrete(name = "Gender") +
+    labs(title = "Surveillance data") +
+    scale_shape_manual("Gender", values = c("Men" = 21, "Women" = 24)) +
+    theme_sphsu_light()+
+    scale_fill_manual(values = c(
+      "Men.1" = 0,
+      "Women.1" = 0,
+      "Men.0" = sphsu_cols("Thistle", names = FALSE),
+      "Women.0" = sphsu_cols("Turquoise", names = FALSE)
+    )) +
+    theme(
+      strip.background = element_rect(fill = "white", size = 1),
+      legend.position = "none",
+      panel.background = element_rect(
+        fill = "white",
+        size = 1,
+        colour = "grey"
+      ),
+      strip.text = element_text(
+        face = "bold",
+        hjust = 0,
+        margin = margin(5, 0, 5, 0)
+      )
+    ) +
+    facet_wrap( ~ outcome, ncol = 1, scales = "free_y"))
 
 
 (natsal_graphs <- 
@@ -488,26 +450,66 @@ surv_data_tidy %>%
 # only public data --------------------------------------------------------
 
 
-surv_data_tidy %>% 
-  filter(outcome %in% c("Conceptions", "Abortions")) %>% 
+
+surv_data_tidy %>%
+  filter(outcome %in% c("Conceptions", "Abortions")) %>%
   # mutate(outcome = fct_drop(outcome)) %>%
-  # filter(year < 2020) %>% 
-  ggplot(aes(time, rate, colour = gender, shape = gender, fill = interaction(gender, covid))) +
+  # filter(year < 2020) %>%
+  ggplot(aes(
+    time,
+    rate,
+    colour = gender,
+    shape = gender,
+    fill = interaction(gender, covid)
+  )) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE) +
-  geom_point(data = limit_sets%>% 
-               filter(outcome %in% c("Conceptions", "Abortions")) , aes(x = NA_integer_, y = max), inherit.aes = FALSE, alpha = 0) +
-  scale_y_continuous("Rate per 100", limits = c(0, NA), expand = expansion(mult = c(0, 0)), labels = scales::label_number(accuracy = 1)) +
-  scale_x_continuous("Year", limits = c(1, 11), breaks = seq(1, 11, 2), labels = seq(2010, 2020, 2)) +
-  scale_colour_manual(name = "Gender", values = c("Men" = sphsu_cols("Thistle", names = FALSE), "Women" = sphsu_cols("Turquoise", names = FALSE))) +
+  geom_point(
+    data = limit_sets %>%
+      filter(outcome %in% c("Conceptions", "Abortions")) ,
+    aes(x = NA_integer_, y = max),
+    inherit.aes = FALSE,
+    alpha = 0
+  ) +
+  scale_y_continuous(
+    "Rate per 100",
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0)),
+    labels = scales::label_number(accuracy = 1)
+  ) +
+  scale_x_continuous(
+    "Year",
+    limits = c(1, 11),
+    breaks = seq(1, 11, 2),
+    labels = seq(2010, 2020, 2)
+  ) +
+  scale_colour_manual(name = "Gender",
+                      values = c(
+                        "Men" = sphsu_cols("Thistle", names = FALSE),
+                        "Women" = sphsu_cols("Turquoise", names = FALSE)
+                      )) +
   # scale_shape_discrete(name = "Gender") +
   labs(title = "Surveillance data") +
   scale_shape_manual("Gender", values = c("Men" = 21, "Women" = 24)) +
   theme_sphsu_light() +
-  scale_fill_manual(values = c("Men.1" = 0, "Women.1" = 0,
-                               "Men.0" = sphsu_cols("Thistle", names = FALSE), "Women.0" = sphsu_cols("Turquoise", names = FALSE))) +
-  theme(legend.position = "none",
-        strip.background = element_rect(fill = "white", size = 1),
-        panel.background = element_rect(fill = "white", size = 1, colour = "grey"),
-        strip.text = element_text(face = "bold", hjust = 0, margin = margin(5,0,5,0))) +
-  facet_wrap(~ outcome, ncol = 1, scales = "free_y")
+  scale_fill_manual(values = c(
+    "Men.1" = 0,
+    "Women.1" = 0,
+    "Men.0" = sphsu_cols("Thistle", names = FALSE),
+    "Women.0" = sphsu_cols("Turquoise", names = FALSE)
+  )) +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "white", size = 1),
+    panel.background = element_rect(
+      fill = "white",
+      size = 1,
+      colour = "grey"
+    ),
+    strip.text = element_text(
+      face = "bold",
+      hjust = 0,
+      margin = margin(5, 0, 5, 0)
+    )
+  ) +
+  facet_wrap( ~ outcome, ncol = 1, scales = "free_y")
