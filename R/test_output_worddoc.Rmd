@@ -2,20 +2,30 @@
 title: "Table outputs for paper"
 author: "Andy Baxter"
 date: "16/03/2022"
-output: word_document
+output: 
+  word_document:
+    keep_md: yes
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r setup, include=TRUE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = TRUE)
+library(gt)
 source("../R/import and convert.R")
 source("../R/functions.R")
 source("../R/tables_functions.R")
 library(tidyverse)
-library(gt)
-library(survey)
 ```
 
-## Table 2
+# Table
+
+```{r}
+mtcars %>% 
+  rownames_to_column(var = "name") %>%
+  gt(rowname_col = "name",  groupname_col = "cyl") %>% 
+  summary_rows(columns = mpg:carb, fns = list(mean = ~ sum(.)))
+```
+
+# Not working table
 
 ```{r}
 wave2_data %>%
@@ -23,23 +33,23 @@ wave2_data %>%
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
            D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
            SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
-         ) 
-  # crosstab_per_outcome(
-  #   D_ConNoCon_w2,
-  #   Total,
-  #   D_Age5Cat_w2,
-  #   D_EthnicityCombined_w2,
-  #   D_SexIDL_w2,
-  #   qsg,
-  #   D_Edu3Cat_w2,
-  #   D_relstatcatv7_w2,
-  #   EconActChg4_w2,
-  #   EconActChg5_w2,
-  #   D_drinkGrp_w2,
-  #   SDSdrinkchangeW2_w2,
-  #   Smokenow_w2,
-  #   D_PHQ2Cat_w2,
-  #   D_GAD2Cat_w2
-  # )
+         ) %>% 
+  crosstab_per_outcome(
+    D_ConNoCon_w2,
+    Total,
+    D_Age5Cat_w2,
+    D_EthnicityCombined_w2,
+    D_SexIDL_w2,
+    qsg,
+    D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
+    EconActChg4_w2,
+    EconActChg5_w2,
+    D_drinkGrp_w2,
+    SDSdrinkchangeW2_w2,
+    Smokenow_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2
+  )  
 ```
 
