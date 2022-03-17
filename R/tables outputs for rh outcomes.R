@@ -183,8 +183,10 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )  #%>% 
-  gtsave("graphs/Contraception outcomes.html")
+  )  
+
+#%>% 
+  # gtsave("graphs/Contraception outcomes.html")
 
 ## Table S3
 wave2_data %>%

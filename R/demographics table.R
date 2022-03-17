@@ -169,5 +169,5 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  ) %>%
+  ) # %>%
   gtsave("Demographics.html")
