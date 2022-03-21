@@ -55,7 +55,7 @@ wave2_data %>%
            D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
            SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
          ) %>% 
-  crosstab_per_outcome(
+  crosstab_per_outcome(lt = "&lt;",
     D_ConNoCon_w2,
     Total,
     D_Age5Cat_w2,
@@ -97,7 +97,7 @@ wave2_data %>%
       ),
     D_SwitchTo_w2 = fct_rev(D_SwitchTo_w2)
   ) %>% 
-  crosstab_per_outcome(
+  crosstab_per_outcome(lt = "&lt;",
     D_SwitchTo_w2,
     Total,
     D_Age5Cat_w2,
@@ -122,7 +122,7 @@ wave2_data %>%
 
 
 ```{r, warning=FALSE}
-t <- pregnancy_tables(wave2_data)
+t <- pregnancy_tables(wave2_data, lt = "&lt;")
 
 t
 ```
@@ -137,7 +137,7 @@ wave2_data %>%
          D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
          SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
   ) %>% 
-  crosstab_per_outcome(
+  crosstab_per_outcome(lt = "&lt;",
     D_ConServAcc_w2,
     Total,
     D_Age5Cat_w2,
@@ -167,7 +167,7 @@ wave2_data %>%
          D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
          SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
   ) %>% 
-  crosstab_per_outcome(
+  crosstab_per_outcome(lt = "&lt;",
     D_SwitchTo_w2,
     Total,
     D_Age5Cat_w2,

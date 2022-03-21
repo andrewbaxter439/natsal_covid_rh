@@ -1,6 +1,6 @@
 # Replicating planned/unplanned table in function ------------------------------
 
-pregnancy_tables <- function(all_data) {
+pregnancy_tables <- function(all_data, lt = "\u003C") {
 
 
 ## Variable labels ---------------------------------------------
@@ -177,7 +177,7 @@ unadj_lin <- preg_dataset %>%
          CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
          coef = str_remove(coef, "^Cat"),
          P = case_when(
-           p < 0.001 ~  "&lt;0.001",
+           p < 0.001 ~  paste0("p", lt, "0.001"),
            TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
          ))
 
@@ -194,7 +194,7 @@ adj_lin <- preg_dataset %>%
          CI = paste0("(", sprintf("%.2f", round(ll, 2)), ", ", sprintf("%.2f", round(ul, 2)), ")"),
          coef = str_remove(coef, "^Cat"),
          P = case_when(
-           p < 0.001 ~  "&lt;0.001",
+           p < 0.001 ~  paste0("p", lt, "0.001"),
            TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
          ))
 
@@ -346,7 +346,7 @@ all_preg_perc %>%
   left_join(scores_denoms, by = c(`  ` = "Cat", "label")) %>% 
   mutate(label = fct_inorder(label)) %>% 
   arrange(label) %>% 
-  mutate(`Unplanned pregnancy score_p-value` = if_else(`Unplanned pregnancy score_p-value` == "&lt;0.001", "p&lt;0.001", paste0("p=", `Unplanned pregnancy score_p-value`)),
+  mutate(`Unplanned pregnancy score_p-value` = if_else(`Unplanned pregnancy score_p-value` == paste0("p", lt, "0.001"), paste0("p", lt, "0.001"), paste0("p=", `Unplanned pregnancy score_p-value`)),
          `Unplanned pregnancy score_Coefficient (CI)` = if_else(`  ` == "glob_p", `Unplanned pregnancy score_p-value`, `Unplanned pregnancy score_Coefficient (CI)`),
          across(-c(label, `Unplanned pregnancy score_Coefficient (CI)`), ~if_else(`  ` == "glob_p", " ", .x))) %>% 
   select(

@@ -3,7 +3,7 @@
 # var_exp <- quo(D_relstatcatv7_w2)
 # var_exp <- quo(Total)
 
-crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
+crosstab_single_var <- function(df = wave2_data, var_exp, var_out, lt = "\u003C") {
   
   require(tidyverse)
   require(survey)
@@ -75,7 +75,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
       transmute(
         cat = title,
         # Total = paste0(round(w, 0), ", " , n),
-        `P-value` = if_else(p < 0.001, "p&lt;0.001", paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
+        `P-value` = if_else(p < 0.001, paste0("p", lt, "0.001"), paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
       ) %>% 
       pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted, unweighted)") %>% 
       mutate(` ` = " ") %>% 
@@ -115,7 +115,7 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   tabout
 }
 
-crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
+crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE, lt = "\u003C") {
   require(gt)
   var_out <- rlang::enquo(outcome)
   rlang::eval_tidy(var_out, data = data)
@@ -123,7 +123,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
   
   df <- vars_exp %>%
     map_dfr(function(exp) {
-      crosstab_single_var(df = data, !!exp, !!var_out)
+      crosstab_single_var(df = data, !!exp, !!var_out, lt = lt)
     })
   
   if(.gt) {
