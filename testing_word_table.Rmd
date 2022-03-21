@@ -1,0 +1,20 @@
+---
+title: "testing_word_table"
+author: "Andy Baxter"
+date: "17/03/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+#&*()
+```
+
+```{r}
+library(gt)
+library(tidyverse)
+tibble(`a` = c("&lt;", "&gt;"),
+       b = c("&amp;","+-/.,./'@;:]}[{#~`¬")) %>% 
+  gt()
+```
+

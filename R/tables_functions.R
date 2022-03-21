@@ -166,7 +166,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
       janitor::adorn_totals(name = tot_name) %>% 
       as_tibble %>% 
       mutate(
-        Denominators = paste0("\u200D", round(wt, 0), ", " , n),
+        Denominators = paste0(round(wt, 0), ", " , n),
         ll = perc_ci(perc, n = sum(wt)),
         ul = perc_ci(perc, "u", sum(wt)),
         `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1))),
@@ -276,3 +276,7 @@ demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
     ) 
   
 }
+
+
+
+

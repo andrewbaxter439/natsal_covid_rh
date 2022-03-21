@@ -1,25 +1,27 @@
 ---
 title: "Table outputs for paper"
 author: "Andy Baxter"
-date: "16/03/2022"
+date: "18/03/2022"
 output: 
   word_document:
     reference_docx: template.docx
 ---
 
 ```{r setup, include=TRUE, message=FALSE, results='hide', echo=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 library(gt)
-source("../R/import and convert.R")
-source("../R/functions.R")
-source("../R/tables_functions.R")
+source("import and convert.R")
+source("functions.R")
+source("tables_functions.R")
+source("pregnancy_table_function.R")
 library(tidyverse)
 ```
 
 # Table 1 — Socio-demographic characteristics of sexually active participants aged 18-44 years, described as female at birth who reported sex with a man in the past year
 
+
 ```{r}
-wave2_data %>%
+t <- wave2_data %>%
   mutate(
     D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
     SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
@@ -40,8 +42,9 @@ wave2_data %>%
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
   )
-```
 
+t
+```
 
 # Table 2 — Contraception used in the year since the start of the first UK lockdown by participants aged 18-44 years who were sexually active and were not pregnant, not trying to get pregnant or not unable to get pregnant
 
@@ -72,6 +75,7 @@ wave2_data %>%
 ```
 
 # Table 3 — Whether users of ‘more effective’ contraceptives pre-lockdown switched from usual contraception method pre-Covid, among participants who were not pregnant, not trying to get pregnant and not unable to get pregnant
+
 ```{r}
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4,
@@ -112,6 +116,16 @@ wave2_data %>%
   )
 ```
 
+
+
+# Table 4 — Percentage of sexually active participants aged 18-44 years participants who had a pregnancy in the last year and differences in ‘plannedness’ of pregnancies
+
+
+```{r, warning=FALSE}
+t <- pregnancy_tables(wave2_data)
+
+t
+```
 
 
 # Table S1
@@ -171,4 +185,8 @@ wave2_data %>%
     D_GAD2Cat_w2
   )
 ```
+
+
+
+# Table S5 - pregnancy plannedness by pregnancies with known outcome
 
