@@ -1,3 +1,7 @@
+# D_ConNoCon_w2 D_SwitchTo_w2 D_ServAccComb_w2
+# var_out <- quo(D_SwitchTo_w2)
+# var_exp <- quo(D_relstatcatv7_w2)
+# var_exp <- quo(Total)
 
 crosstab_single_var <- function(df = wave2_data, var_exp, var_out) {
   
@@ -142,6 +146,7 @@ crosstab_per_outcome <- function(data = wave2_data, outcome, ..., .gt = TRUE) {
 
 denom_single_var <- function(var_exp, var_out, df = wave2_data) {
   
+  require(tidyverse)
   op <- options(dplyr.summarise.inform=FALSE)
   on.exit(options(op))
   
@@ -258,6 +263,8 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
 }
 
 demographics_per_outcome <- function(data = wave2_data, outcome, ...) {
+  
+  require(gt)
   
   var_out <- rlang::enquo(outcome)
   rlang::eval_tidy(var_out, data = data)
