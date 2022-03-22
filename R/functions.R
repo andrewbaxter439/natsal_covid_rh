@@ -1,3 +1,5 @@
+sig_figs <- function(x) gsub("(0\\.0*\\d)$", ("\\10"), sprintf("%.2g", x))
+
 cross_tab_by_var <- function(variable, col_head = "Variable", data = lumped_data, output = c("tibble", "gt")) {
   
   output <- match.arg(output)

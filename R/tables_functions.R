@@ -75,7 +75,10 @@ crosstab_single_var <- function(df = wave2_data, var_exp, var_out, lt = "\u003C"
       transmute(
         cat = title,
         # Total = paste0(round(w, 0), ", " , n),
-        `P-value` = if_else(p < 0.001, paste0("p", lt, "0.001"), paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
+        ## P-value to 3dp, unless < 0.001
+        # `P-value` = if_else(p < 0.001, paste0("p", lt, "0.001"), paste0("p=", sprintf(fmt = "%.3f", round(p, 3))))
+        ## P-value to 2 sig figs, unless < 0.0001 (Lancet)
+        `P-value` = if_else(p < 0.0001, paste0("p", lt, "0.0001"), paste0("p=", sig_figs(p)))
       ) %>% 
       pivot_longer(-cat, names_to = "  ", values_to = "Denominators (weighted, unweighted)") %>% 
       mutate(` ` = " ") %>% 

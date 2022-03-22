@@ -209,8 +209,9 @@ pregnancy_tables <- function(all_data, lt = "\u003C") {
       ),
       coef = str_remove(coef, "^Cat"),
       P = case_when(
-        p < 0.001 ~  paste0("p", lt, "0.001"),
-        TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
+        p < 0.0001 ~  paste0("p", lt, "0.0001"),
+        # TRUE ~ as.character(sprintf("%.3f", round(p, 3))) # for 3dp
+        TRUE ~ sig_figs(p) # for 2 sig fig
       )
     )
   
@@ -242,8 +243,9 @@ pregnancy_tables <- function(all_data, lt = "\u003C") {
       ),
       coef = str_remove(coef, "^Cat"),
       P = case_when(
-        p < 0.001 ~  paste0("p", lt, "0.001"),
-        TRUE ~ as.character(sprintf("%.3f", round(p, 3)))
+        p < 0.0001 ~  paste0("p", lt, "0.0001"),
+        # TRUE ~ as.character(sprintf("%.3f", round(p, 3))) # for 3dp
+        TRUE ~ sig_figs(p) # for 2 sig fig
       )
     )
   
@@ -408,8 +410,8 @@ pregnancy_tables <- function(all_data, lt = "\u003C") {
     arrange(label) %>%
     mutate(
       `Unplanned pregnancy score_p-value` = if_else(
-        `Unplanned pregnancy score_p-value` == paste0("p", lt, "0.001"),
-        paste0("p", lt, "0.001"),
+        `Unplanned pregnancy score_p-value` == paste0("p", lt, "0.0001"),
+        paste0("p", lt, "0.0001"),
         paste0("p=", `Unplanned pregnancy score_p-value`)
       ),
       `Unplanned pregnancy score_Coefficient (CI)` = if_else(
