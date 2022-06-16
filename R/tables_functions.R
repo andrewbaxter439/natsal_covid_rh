@@ -190,7 +190,7 @@ denom_single_var <- function(var_exp, var_out, df = wave2_data) {
           str_detect(CI, "NaN") ~ "-", 
           TRUE ~ paste(`%`, CI, sep = " "))
       ) %>% 
-      select(!!var_out, `Age distribution (% (95% CI))` = `Age distribution`, `Denominators (weighted, unweighted)` = Denominators) %>% 
+      select(!!var_out, `Distribution across age categories (% (95% CI))` = `Age distribution`, `Denominators (weighted, unweighted)` = Denominators) %>% 
       pivot_longer(-!!var_out, names_to = "  ") %>% 
       mutate(cat = "Total", ` ` = " ") %>% 
       pivot_wider(c(cat, ` `,`  `), names_from = !!var_out, values_from = value) 

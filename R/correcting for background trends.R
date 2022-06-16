@@ -10,6 +10,14 @@ conceptions2019workbook <-
     skip = 4
   )
 
+conceptions2020workbook <-
+  read_excel(
+    file.path("data", "conceptions2020workbook.xlsx"),
+    sheet = "1a",
+    skip = 7
+  )
+
+
 
 names_rep <- names(conceptions2019workbook) %>%
   str_remove("\\..*") %>%
@@ -23,10 +31,12 @@ names_rep <- names(conceptions2019workbook) %>%
   ) %>%
   pull(full_names)
 
+names(conceptions2020workbook) <- names_rep
 
 conceptions_abortions_yearly <-
-  conceptions2019workbook %>%
+  conceptions2020workbook %>%
   `names<-`(names_rep) %>%
+  # bind_rows(conceptions2020workbook %>% filter(`Year of conception` == 2020) %>% mutate(`Year of conception` = as.character(`Year of conception`))) %>% 
   mutate(Year = as.numeric(str_extract(`Year of conception`, "^\\d{4}")), .keep = "unused") %>%
   filter(!is.na(Year)) %>%
   mutate(across(.fns = as.numeric)) %>%
@@ -301,7 +311,7 @@ conceptions_abortions_yearly
                    show.legend = FALSE) +
     geom_point(
       data = limit_sets,
-      aes(x = NA_integer_, y = max, alpha = "(2020 points omitted from analysis)"),
+      aes(x = NA_integer_, y = max, alpha = "(2020 data points, not included in trend analysis)"),
       inherit.aes = FALSE,
       size = 2
     ) +
@@ -363,7 +373,7 @@ conceptions_abortions_yearly
     scale_alpha_manual(
       name = NULL,
       # name = "(2020 points omitted)",
-      breaks = c("Men", "(2020 points omitted from analysis)"),
+      breaks = c("Men", "(2020 data points, not included in trend analysis)"),
       values = c(1, 1),
       guide = guide_legend(
         override.aes = list(

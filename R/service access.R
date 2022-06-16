@@ -336,21 +336,26 @@ label <- glue::glue("Denominators (weighted, unweighted): {round(vals$wt, 0)}, {
            X^2 = {round(vals$chisq, 2)}<br>
            p-value = {round(vals$p, 3)}")
 
-serv_acc_gg <- serv_acc_reasons_tidy %>%
+(serv_acc_gg <- serv_acc_reasons_tidy %>%
+  mutate(D_ConServFailWhy_w2 = fct_relabel(D_ConServFailWhy_w2, str_wrap, 40)) |> 
   group_by(D_ConServFailWhy_w2) %>% 
   nest() %>% 
   mutate(data = map(data, ~adorn_totals(.x))) %>% 
   unnest(data) %>% 
   ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServFailWhy_w2))) +
   geom_col(position = "fill", width = 0.5) +
-  scale_fill_sphsu(name = str_wrap("Reasons for not being able to access contraceptive services", 50)) +
+  scale_fill_sphsu(name = NULL,
+                   guide =  guide_legend(byrow = TRUE)) +
   theme_sphsu_light() +
+    theme(legend.spacing.y = unit(0.5, "cm"),
+          legend.key.size = unit(1, "cm"),
+          text = element_text(size = 18)) +
   scale_y_continuous("Weighted prevalence", 
                      expand = expansion(0),
                      labels = scales::percent) +
   theme(panel.grid = element_blank(),
         axis.ticks.x = element_blank()) +
-  scale_x_discrete("Age group")
+  scale_x_discrete("Age group"))
 
 g <- ggplotGrob(serv_acc_gg)
 

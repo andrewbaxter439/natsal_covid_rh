@@ -1,7 +1,7 @@
 ---
 title: "Table outputs for paper"
 author: "Andy Baxter"
-date: "18/03/2022"
+date: "`r format(Sys.Date(), format = '%d/%m/%Y')`"
 output: 
   word_document:
     reference_docx: template.docx
@@ -15,6 +15,8 @@ source("functions.R")
 source("tables_functions.R")
 source("pregnancy_table_function.R")
 library(tidyverse)
+
+pts <- function (size) return(size * 5/14)
 ```
 
 # Table 1 — Socio-demographic characteristics of sexually active participants aged 18-44 years, described as female at birth who reported sex with a man in the past year
@@ -41,10 +43,12 @@ t <- wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )
+  ) 
 
 t
 ```
+
+*In a ‘casual’ relationship, in a ‘new’ relationship, in more than one relationship, recently ended a relationship or ‘other’ relationship status
 
 # Table 2 — Contraception used in the year since the start of the first UK lockdown by participants aged 18-44 years who were sexually active and were not pregnant, not trying to get pregnant or not unable to get pregnant
 
@@ -71,8 +75,12 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )  
+  )  %>% 
+  tab_header(title = "Usual contraception used during Covid (% (95%CI))") %>% 
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
 ```
+
+246 respondents (17.4% of total) answered ‘Not applicable’ as they were already pregnant, planning to get pregnant of unable to get pregnant. These responses are excluded from the table. Participants who used only emergency contraceptives are classed as ‘no method used’. P-values were calculated from F values generated from Pearson X2 statistics using the second order correction Rao and Scott (1984).
 
 # Table 3 — Whether users of ‘more effective’ contraceptives pre-lockdown switched from usual contraception method pre-Covid, among participants who were not pregnant, not trying to get pregnant and not unable to get pregnant
 
@@ -113,22 +121,29 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )
+  ) %>% 
+  tab_header(title = "Used more effective methods in the year before first lockdown and stopped or switched method (% (95%CI))") %>% 
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
 ```
 
+631 participants reported only or usually using a ‘more effective’ method of contraception in the year before the first lockdown. Users of emergency contraception only were classed as ‘stopped using contraceptives’. P-values were calculated from F values generated from Pearson X2 statistics using the second order correction Rao and Scott (1984).
 
 
 # Table 4 — Percentage of sexually active participants aged 18-44 years participants who had a pregnancy in the last year and differences in ‘plannedness’ of pregnancies
 
 
 ```{r, warning=FALSE}
-t <- pregnancy_tables(wave2_data, lt = "&lt;")
+t <- pregnancy_tables(wave2_data, lt = "&lt;") %>% 
+  tab_header(title = "A pregnancy in the last year and proportion of pregnancies which were unplanned (% (95%CI)); mean and adjusted differences in LMUP score (difference (CI))") %>% 
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
 
 t
 ```
 
+The London Measure of Unplanned Pregnancy (LMUP) score scores each pregnancy on a range of 0-12 to represent the relative plannedness of the pregnancy. Differences for LMUP score across all categories other than age are adjusted for age using a linear regression model.
 
-# Table S1
+
+# Table S1 — Service access outcomes – results amongst participants who tried to access contraceptive services (n=441)
 
 ```{r}
 wave2_data %>%
@@ -153,11 +168,12 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )
-
+  ) %>% 
+  tab_header(title = "Outcome of attempts to access contraceptive services (% (95% CI))") %>% 
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
 ```
 
-# Table S3
+# Table S3 — Stopping or switching contraception – all participants who used contraception before Covid
 
 ```{r}
 wave2_data %>%
@@ -183,10 +199,100 @@ wave2_data %>%
     Smokenow_w2,
     D_PHQ2Cat_w2,
     D_GAD2Cat_w2
-  )
+  ) %>% 
+  tab_header(title = "Stopped or switched contraceptive methods (% (95% CI))") %>% 
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+```
+
+246 respondents (17.4% of total) answered ‘Not applicable’ to questions of usual contraception used as they were already pregnant, planning to get pregnant of unable to get pregnant. 142 respondents (9.5%) answered ‘no method used’ in the year before lockdown. These responses are excluded from the table.
+
+# Table S4 - Barriers faced in accessing contraceptive services
+
+Data matching Figure 3
+
+```{r}
+serv_acc_reasons_tidy %>% 
+  select(D_ConServFailWhy_w2,
+         D_Age5Cat_w2,
+         `%_CI`) %>% 
+  pivot_wider(names_from = D_Age5Cat_w2, values_from = `%_CI`) %>% 
+  bind_rows(serv_acc_tot_row) %>% 
+  gt(rowname_col = "D_ConServFailWhy_w2") %>% 
+  fmt_missing(columns = everything(), missing_text = " ") 
 ```
 
 
 
-# Table S5 - pregnancy plannedness by pregnancies with known outcome
+# Table S5 — pregnancy plannedness by pregnancies with known outcome
 
+# Table Sx (not currently included) - Summing 'switch' percentages
+
+```{r all_switch}
+wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         D_ConPreUs_w2 == "More effective method") %>%
+  mutate(
+    across(where(is.factor), .fns = ~ fct_drop(.x)),
+    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    D_StopOrSwitch_w2 = fct_collapse(
+      D_SwitchTo_w2,
+      "Stopped using contraceptives" = "Stopped using contraceptives",
+      "Did not switch or stop usual method" = "Did not switch or stop usual method",
+      other_level = "Switched usual or only contraceptive method"
+    ) %>%
+      fct_relevel(
+        "Did not switch or stop usual method",
+        "Stopped using contraceptives",
+        "Switched usual or only contraceptive method"
+      ),
+    D_SwitchTo_w2 = fct_rev(D_SwitchTo_w2)
+  ) %>% 
+  crosstab_per_outcome(
+    D_StopOrSwitch_w2,
+    Total,
+    D_Age5Cat_w2,
+    D_EthnicityCombined_w2,
+    D_SexIDL_w2,
+    qsg,
+    D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
+    EconActChg4_w2,
+    EconActChg5_w2,
+    D_drinkGrp_w2,
+    SDSdrinkchangeW2_w2,
+    Smokenow_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2
+  )
+```
+
+## With upper age groups combined
+
+```{r upper_combined}
+wave2_data %>%
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         D_ConPreUs_w2 == "More effective method") %>%
+  mutate(
+    across(where(is.factor), .fns = ~ fct_drop(.x)),
+    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    D_StopOrSwitch_w2 = fct_collapse(
+      D_SwitchTo_w2,
+      "Stopped using contraceptives" = "Stopped using contraceptives",
+      "Did not switch or stop usual method" = "Did not switch or stop usual method",
+      other_level = "Switched usual or only contraceptive method"
+    ) %>%
+      fct_relevel(
+        "Did not switch or stop usual method",
+        "Stopped using contraceptives",
+        "Switched usual or only contraceptive method"
+      ),
+    D_SwitchTo_w2 = fct_rev(D_SwitchTo_w2),
+    age_lumped = fct_other(D_Age5Cat_w2, keep = "18-24", other_level = "Older")
+  ) %>% 
+  crosstab_per_outcome(
+    D_StopOrSwitch_w2,
+    age_lumped
+  )
+```

@@ -1,0 +1,109 @@
+---
+title: "Changing unplanned pregnancies"
+output:
+  word_document: 
+    reference_docx: template.docx
+  html_notebook: default
+---
+
+```{r dataprep, echo=FALSE, message=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+source("R/import and convert.R")
+source("R/functions.R")
+```
+
+# Mean LMUP scores in pre-post
+
+```{r}
+
+preg_1_5 <-wave2_data %>% 
+  filter(!is.na(D_LMUPScore_w2)) %>% 
+  mutate(preg_when = if_else(D_Preg1yr_w2 == "Yes", "last year", "1-5 yrs"))
+
+preg_1_5 %>% 
+  group_by(preg_when) %>% 
+  summarise(mean_lmup = weighted.mean(D_LMUPScore_w2, w = weight2, na.rm = TRUE),
+            # sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
+            sd_lmup = sqrt(Hmisc::wtd.var(D_LMUPScore_w2, weights = weight2, na.rm = TRUE))) %>% 
+  mutate(across(where(is.numeric), round, 2)) %>% 
+  knitr::kable(.)
+```
+
+## t-test of difference
+
+```{r}
+
+
+preg_1_5_svy <- svydesign(id = ~1, data = preg_1_5, weights = ~weight2)
+
+svyttest(D_LMUPScore_w2 ~ D_Preg1yr_w2, preg_1_5_svy)
+
+```
+
+
+# Proportions of all pregnancies
+## What % of pregnancies were unplanned?
+
+```{r perc_unplanned}
+wave2_data %>% 
+  filter(!is.na(D_LMUPScore_w2)) %>% 
+  mutate(preg_when = if_else(D_Preg1yr_w2 == "Yes", "last year", "1-5 yrs"),
+         unplanned = if_else(D_LMUPCat_w2 == "Unplanned", 1, 0)) %>%
+  group_by(preg_when) %>% 
+  summarise(proportion_unplanned = sum(unplanned*weight2)/sum(weight2)) %>% 
+  mutate(ll = perc_ci(proportion_unplanned, n = 1488),
+         ul = perc_ci(proportion_unplanned, lim = "ul", n = 1488),
+         across(where(is.numeric), scales::percent)) %>% 
+  knitr::kable(.)
+```
+
+## OR for unplanned pregnancies
+
+```{r, warning=FALSE}
+mod <- wave2_data %>% 
+  filter(!is.na(D_LMUPScore_w2)) %>% 
+  mutate(preg_when = if_else(D_Preg1yr_w2 == "Yes", "last year", "1-5 yrs"),
+         unplanned = if_else(D_LMUPCat_w2 == "Unplanned", 1, 0)) %>% 
+  glm(unplanned ~ preg_when, family = "binomial", data = ., weights = weight2)
+
+cbind(exp(coef(mod)), exp(confint(mod))) %>% 
+  round(3) %>% 
+  knitr::kable(.)
+```
+
+# Proportions of all women
+## Percentage of women with unplanned pregnancy as most recent pregnancy (per year)
+
+```{r perc_unplanned_all}
+wave2_data %>% 
+  mutate(unplanned = if_else(D_LMUPCat_w2 == "Unplanned", 1, 0),
+         preg_covid = if_else(D_Preg1yr_w2 == "Yes", 1, 0),
+         unpl_covid = unplanned*preg_covid,
+         pre_covid = unplanned*(1-preg_covid)) %>%
+  summarise(unplanned_pre_covid = sum(pre_covid * weight2, na.rm = TRUE)/(4*sum(weight2)),
+            unplanned_during_covid = sum(unpl_covid * weight2, na.rm = TRUE)/sum(weight2)) %>% 
+  pivot_longer(1:2, names_to = "period", values_to = "proportion_unplanned") %>% 
+  mutate(ll = perc_ci(proportion_unplanned, n = 1488),
+         ul = perc_ci(proportion_unplanned, lim = "ul", n = 1488),
+         across(where(is.numeric), scales::percent)) %>% 
+  knitr::kable(.)
+```
+
+## OR for unplanned pregnancies (across all women)
+
+```{r or_unplanned_all, warning=FALSE}
+mod <- wave2_data %>% 
+  mutate(preg_covid = if_else(D_Preg1yr_w2 == "Yes", 1, 0),
+         unplanned = if_else(D_LMUPCat_w2 == "Unplanned", 1, 0, missing = 0)) %>% 
+  select(preg_covid, unplanned, weight2) %>% 
+  mutate(covid = 1) %>% 
+  bind_rows(., mutate(., covid = 0)) %>% 
+  group_by(covid) %>% 
+  mutate(unplanned_preg_in_period = unplanned * (preg_covid == covid) / (4 - 3 * (covid))) %>% 
+  glm(unplanned_preg_in_period ~ covid, family = "binomial", data = ., weights = weight2)
+
+cbind(exp(coef(mod)), exp(confint(mod))) %>% 
+  round(3) %>% 
+  knitr::kable(.)
+```
