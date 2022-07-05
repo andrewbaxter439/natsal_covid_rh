@@ -42,19 +42,20 @@ serv_acc_data <- wave2_data %>%
     ServAcc2_w2,
     ServTry4_w2,
     D_Age5Cat_w2,
-    D_SexIDL_w2,
-    D_Edu3Cat_w2,
-    Smokenow_w2,
-    # SDSdrinkchangeW2_w2,
-    # D_PHQ2Cat_w2,
-    # D_GAD2Cat_w2,
+    # D_SexIDL_w2,
+    # D_Edu3Cat_w2,
+    # Smokenow_w2,
+    SDSdrinkchangeW2_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2,
     weight2
   ) %>% 
   mutate(
     serv_acc = ServAcc2_w2,
     serv_barr = ServTry4_w2,
-    D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
-    # SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    # D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    SDSdrinkchangeW2_w2 = fct_relevel(SDSdrinkchangeW2_w2, levels = c("Less these days","About the same", "More these days")) |> 
+      relevel(ref = 2),
     .keep = "unused") %>% 
   select(-D_ConServAcc_w2) 
 
@@ -91,7 +92,7 @@ serv_acc_ors <-
       arrange(Cat),
     .
   ) %>%
-  filter(Comparison != "D_Age5Cat_w2") %>%
+  # filter(Comparison != "D_Age5Cat_w2") %>%
   mutate(
     ll = exp(ll),
     ul = exp(ul),
@@ -116,7 +117,7 @@ serv_acc_disp <-
   # arrange(Cat) %>% 
   # arrange(Comparison) %>% 
   # To do: Make CI for glob_p, clear all other parts, make glob_p base in factor
-  filter(Comparison != "D_Age5Cat_w2") %>%
+  # filter(Comparison != "D_Age5Cat_w2") %>%
   mutate(
     # OR = ifelse(Cat == "glob_p", 0, OR),
     # Cat = if_else(Cat == "glob_p", " ", Cat),
@@ -136,7 +137,7 @@ serv_barr_ors <- serv_acc_data %>%
   select(-serv_acc) %>% 
   filter(!is.na(serv_barr)) %>% 
   pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
-  nest(-Comparison) %>% 
+  nest(data = -Comparison) %>% 
   mutate(
     mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
@@ -159,7 +160,7 @@ serv_barr_ors <- serv_acc_data %>%
       arrange(Cat),
     .
   ) %>%
-  filter(Comparison != "D_Age5Cat_w2") %>%
+  # filter(Comparison != "D_Age5Cat_w2") %>%
   mutate(
     ll = exp(ll),
     ul = exp(ul),
@@ -218,7 +219,7 @@ serv_barr_disp <- comp_labels %>%
   bind_rows(serv_barr_ors %>% select(-wt, -n) %>% filter(Cat != "glob_p")) %>% 
   mutate(Comparison = fct_inorder(Comparison)) %>% 
   # arrange(Comparison) %>% 
-  filter(Comparison != "D_Age5Cat_w2") %>%
+  # filter(Comparison != "D_Age5Cat_w2") %>%
   mutate(across(where(is.character), ~if_else(is.na(OR)&is.na(.x), " ", .x)),
          empty = if_else(aOR == "0", NA_character_, "black"),
          show = if_else(is.na(OR), 0, 1),
@@ -298,6 +299,8 @@ draw_forest_table <-  function() {
       # panel.spacing.y = unit(1, "cm"),
       plot.margin = margin(l = 0, r = 0),
       panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
       axis.ticks.y = element_blank(),
       axis.text.y = element_blank(),
       axis.line.y = element_blank(),

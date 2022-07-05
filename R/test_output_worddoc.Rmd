@@ -15,6 +15,8 @@ source("functions.R")
 source("tables_functions.R")
 source("pregnancy_table_function.R")
 library(tidyverse)
+library(janitor)
+library(SPHSUgraphs)
 
 pts <- function (size) return(size * 5/14)
 ```
@@ -77,7 +79,7 @@ wave2_data %>%
     D_GAD2Cat_w2
   )  %>% 
   tab_header(title = "Usual contraception used during Covid (% (95%CI))") %>% 
-  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 ```
 
 246 respondents (17.4% of total) answered ‘Not applicable’ as they were already pregnant, planning to get pregnant of unable to get pregnant. These responses are excluded from the table. Participants who used only emergency contraceptives are classed as ‘no method used’. P-values were calculated from F values generated from Pearson X2 statistics using the second order correction Rao and Scott (1984).
@@ -123,7 +125,7 @@ wave2_data %>%
     D_GAD2Cat_w2
   ) %>% 
   tab_header(title = "Used more effective methods in the year before first lockdown and stopped or switched method (% (95%CI))") %>% 
-  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 ```
 
 631 participants reported only or usually using a ‘more effective’ method of contraception in the year before the first lockdown. Users of emergency contraception only were classed as ‘stopped using contraceptives’. P-values were calculated from F values generated from Pearson X2 statistics using the second order correction Rao and Scott (1984).
@@ -135,7 +137,7 @@ wave2_data %>%
 ```{r, warning=FALSE}
 t <- pregnancy_tables(wave2_data, lt = "&lt;") %>% 
   tab_header(title = "A pregnancy in the last year and proportion of pregnancies which were unplanned (% (95%CI)); mean and adjusted differences in LMUP score (difference (CI))") %>% 
-  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 
 t
 ```
@@ -143,7 +145,91 @@ t
 The London Measure of Unplanned Pregnancy (LMUP) score scores each pregnancy on a range of 0-12 to represent the relative plannedness of the pregnancy. Differences for LMUP score across all categories other than age are adjusted for age using a linear regression model.
 
 
-# Table S1 — Service access outcomes – results amongst participants who tried to access contraceptive services (n=441)
+# Figure 1 -- Accessing contraception services
+
+```{r access_contr, fig.height=5.9, fig.width = 10.2}
+serv_acc_reasons_tidy <- wave2_data %>% 
+    filter(!is.na(D_ConServFailWhy_w2)) %>% 
+    group_by(D_ConServFailWhy_w2, D_Age5Cat_w2) %>% 
+    # group_by(exposure, outcome) %>%
+    summarise(wt = sum(weight2),
+              n = n(),
+              .groups = "drop_last") %>%
+    group_by(D_ConServFailWhy_w2) %>% 
+    nest() %>% 
+    mutate(data = modify(data, ~ janitor::adorn_totals(.x))) %>% 
+    unnest(data) %>% 
+    group_by(D_Age5Cat_w2) %>% 
+    mutate(
+      perc = wt / sum(wt),
+      ll = perc_ci(perc, n = sum(wt)),
+      ul = perc_ci(perc, "u", sum(wt)),
+      `%` = paste0(sprintf(fmt = "%.1f", round(perc * 100, 1)), ""),
+      CI = paste0(
+        "(",
+        sprintf(fmt = "%.1f", round(ll * 100, 1)),
+        ",\u00A0",
+        sprintf(fmt = "%.1f", round(ul * 100, 1)),
+        ")"
+      ),
+      `%_CI` = if_else(str_detect(CI, "NaN"), "-", paste(`%`, CI, sep = " "))
+      # Denominators = paste0("\u200D", round(wt, 0), "," , n)
+    ) %>%
+    ungroup()
+
+serv_acc_gg <- serv_acc_reasons_tidy %>%
+  mutate(D_ConServFailWhy_w2 = fct_relabel(D_ConServFailWhy_w2, str_wrap, 40)) |> 
+  group_by(D_ConServFailWhy_w2) %>% 
+  nest() %>% 
+  mutate(data = map(data, ~adorn_totals(.x))) %>% 
+  unnest(data) %>% 
+  ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServFailWhy_w2))) +
+  geom_col(position = "fill", width = 0.5) +
+  scale_fill_sphsu(name = NULL,
+                   guide =  guide_legend(byrow = TRUE)) +
+  theme_sphsu_light() +
+    theme(legend.spacing.y = unit(0.5, "cm"),
+          legend.key.size = unit(1, "cm"),
+          text = element_text(size = 12),
+          legend.text = element_text(size = 14)) +
+  scale_y_continuous("Weighted prevalence", 
+                     expand = expansion(0),
+                     labels = scales::percent) +
+  theme(panel.grid = element_blank(),
+        axis.ticks.x = element_blank()) +
+  scale_x_discrete("Age group")
+
+g <- ggplotGrob(serv_acc_gg)
+
+
+vals <- wave2_data %>% 
+  filter(!is.na(D_ConServFailWhy_w2)) %>% 
+  summarise(n = n(),
+            wt = sum(weight2),
+            chisq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[1],
+            p = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[3]) %>% 
+  unclass
+
+label <- glue::glue("Denominators (weighted, unweighted): {round(vals$wt, 0)}, {vals$n}<br>
+           X^2 = {round(vals$chisq, 2)}<br>
+           p-value = {round(vals$p, 3)}")
+
+# leg2 <- gtable::gtable_add_grob(g$grob[[15]], textGrob(label, gp = gpar(fontsize = 10)), 5, 3)
+g$grob[[15]]$heights[[5]] <- unit(40, "mm")
+
+g$grobs[[15]] <- gtable::gtable_add_grob(g$grob[[15]], gridtext::richtext_grob(label, gp = grid::gpar(fontsize = 10),
+                                                                               x = unit(0.1, "npc"),
+                                                                               y = unit(0, "npc"),
+                                                                               vjust = -1, hjust = 0), 5, 3)
+
+print(gridExtra::grid.arrange(g))
+
+```
+
+
+# Supplementary tables
+
+## Table S1 — Service access outcomes – results amongst participants who tried to access contraceptive services (n=441)
 
 ```{r}
 wave2_data %>%
@@ -170,10 +256,10 @@ wave2_data %>%
     D_GAD2Cat_w2
   ) %>% 
   tab_header(title = "Outcome of attempts to access contraceptive services (% (95% CI))") %>% 
-  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 ```
 
-# Table S3 — Stopping or switching contraception – all participants who used contraception before Covid
+## Table S3 — Stopping or switching contraception – all participants who used contraception before Covid
 
 ```{r}
 wave2_data %>%
@@ -201,16 +287,23 @@ wave2_data %>%
     D_GAD2Cat_w2
   ) %>% 
   tab_header(title = "Stopped or switched contraceptive methods (% (95% CI))") %>% 
-  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title())
+  tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 ```
 
 246 respondents (17.4% of total) answered ‘Not applicable’ to questions of usual contraception used as they were already pregnant, planning to get pregnant of unable to get pregnant. 142 respondents (9.5%) answered ‘no method used’ in the year before lockdown. These responses are excluded from the table.
 
-# Table S4 - Barriers faced in accessing contraceptive services
+## Table S4 — Barriers faced in accessing contraceptive services
 
 Data matching Figure 3
 
 ```{r}
+serv_acc_tot_row <- serv_acc_reasons_tidy %>% 
+  filter(D_Age5Cat_w2 == "Total") %>% 
+  group_by(D_Age5Cat_w2) %>% 
+  summarise(wt = sum(wt), n = sum(n), .groups = "drop_last") %>% 
+  transmute(Total = paste0("\u200D", round(wt, 0), "," , n),
+            D_ConServFailWhy_w2 = "Denominators (weighted, unweighted)")
+
 serv_acc_reasons_tidy %>% 
   select(D_ConServFailWhy_w2,
          D_Age5Cat_w2,
@@ -223,9 +316,177 @@ serv_acc_reasons_tidy %>%
 
 
 
-# Table S5 — pregnancy plannedness by pregnancies with known outcome
+## Table S5 — pregnancy plannedness by pregnancies with known outcome
 
-# Table Sx (not currently included) - Summing 'switch' percentages
+## Table S6 — Age adjusted odds ratios of using a more effective contraceptive since the start of lockdown
+
+```{r ors_more_effective}
+
+comp_labels <- tibble(
+  Comparison = c(
+    "D_Age5Cat_w2",
+    "qsg",
+    "D_EthnicityCombined_w2",
+    "D_Edu3Cat_w2",
+    "D_SexIDL_w2",
+    "EconActChg4_w2",
+    "EconActChg5_w2",
+    "D_drinkGrp_w2",
+    "SDSdrinkchangeW2_w2",
+    "Smokenow_w2",
+    "D_relstatcatv7_w2",
+    "D_PHQ2Cat_w2",
+    "D_GAD2Cat_w2",
+    "D_ConServAcc_w2",
+    "CondomAcc_w2")
+) %>%
+  mutate(label = map_chr(Comparison, function(exp_var) {
+    wave2_data %>%
+      pull(exp_var) %>%
+      attr("label")
+  }))
+
+wave2_data |> 
+  select(
+    D_ConNoCon_w2,
+    D_Age5Cat_w2,
+    D_EthnicityCombined_w2,
+    D_SexIDL_w2,
+    qsg,
+    D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
+    EconActChg4_w2,
+    EconActChg5_w2,
+    D_drinkGrp_w2,
+    SDSdrinkchangeW2_w2,
+    Smokenow_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2,
+    weight2
+  ) |> 
+  filter(as.numeric(D_ConNoCon_w2) != 4) |> 
+  mutate(more_effective = if_else(D_ConNoCon_w2 == "More effective method", 1, 0),
+         .keep = "unused") |> 
+    pivot_longer(-c(more_effective, weight2, D_Age5Cat_w2),
+               names_to = "Comparison",
+               values_to = "Cat") %>%
+  nest(-Comparison) %>%
+  mutate(
+    mod_more_eff = map(data, ~ return_svy_ORs(.x, more_effective ~ Cat + D_Age5Cat_w2, weight2)),
+    sums = map(
+      data,
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[more_effective == 1], na.rm = TRUE)/wt)
+    )
+  ) |> 
+  rowwise() |> 
+    mutate(mod_more_eff = list(left_join(mod_more_eff, sums, by = "Cat"))) |> 
+  unnest(mod_more_eff) |>
+  mutate(
+    ll = exp(ll),
+    ul = exp(ul),
+    aOR = if_else(est == 1, "1", aOR),
+    CI = if_else(est == 1, "(ref)", CI),
+    denom = paste0(wt, ", ", n)
+  ) %>%
+  left_join(comp_labels, by = "Comparison") |> 
+  select(label, Cat, aOR, CI, P, denom) |> 
+  mutate(Cat = if_else(Cat == "glob_p", "", Cat),
+         `Weighted,\nunweighted` = if_else(str_detect(denom, "NA"), "", denom),
+         across(everything(), replace_na, ""),
+         across(everything(), str_replace, "<", "&lt;")) |> 
+  select(-denom) |>
+  rename(` `  = Cat) |> 
+  mutate(blank = "") |> 
+  group_by(label) |> 
+  gt(rowname_col = 'blank')
+
+```
+
+## Table S7 — Age adjusted odds ratios of switching contraceptives since the start of the pandemic, amongst participants who used a more effective method pre-pandemic
+
+```{r ors_switch}
+
+comp_labels <- tibble(
+  Comparison = c(
+    "D_Age5Cat_w2",
+    "qsg",
+    "D_EthnicityCombined_w2",
+    "D_Edu3Cat_w2",
+    "D_SexIDL_w2",
+    "EconActChg4_w2",
+    "EconActChg5_w2",
+    "D_drinkGrp_w2",
+    "SDSdrinkchangeW2_w2",
+    "Smokenow_w2",
+    "D_relstatcatv7_w2",
+    "D_PHQ2Cat_w2",
+    "D_GAD2Cat_w2",
+    "D_ConServAcc_w2",
+    "CondomAcc_w2")
+) %>%
+  mutate(label = map_chr(Comparison, function(exp_var) {
+    wave2_data %>%
+      pull(exp_var) %>%
+      attr("label")
+  }))
+
+wave2_data |> 
+  filter(as.numeric(D_ConNoCon_w2) != 4,
+         D_ConPreUs_w2 == "More effective method") |> 
+  select(
+    D_SwitchOrStopCon_w2,
+    D_Age5Cat_w2,
+    D_EthnicityCombined_w2,
+    D_SexIDL_w2,
+    qsg,
+    D_Edu3Cat_w2,
+    D_relstatcatv7_w2,
+    EconActChg4_w2,
+    EconActChg5_w2,
+    D_drinkGrp_w2,
+    SDSdrinkchangeW2_w2,
+    Smokenow_w2,
+    D_PHQ2Cat_w2,
+    D_GAD2Cat_w2,
+    weight2
+  ) |> 
+    pivot_longer(-c(D_SwitchOrStopCon_w2, weight2, D_Age5Cat_w2),
+               names_to = "Comparison",
+               values_to = "Cat") %>%
+  nest(-Comparison) %>%
+  mutate(
+    mod_switch = map(data, ~ return_svy_ORs(.x, D_SwitchOrStopCon_w2 ~ Cat + D_Age5Cat_w2, weight2)),
+    sums = map(
+      data,
+      ~ filter(.x,!is.na(Cat)) %>% group_by(Cat) %>% summarise(wt = round(sum(weight2), 0), n = n(), prop = sum(weight2[D_SwitchOrStopCon_w2 == "Yes"], na.rm = TRUE)/wt)
+    )
+  ) |> 
+  rowwise() |> 
+    mutate(mod_switch = list(left_join(mod_switch, sums, by = "Cat"))) |> 
+  unnest(mod_switch) |>
+  mutate(
+    ll = exp(ll),
+    ul = exp(ul),
+    aOR = if_else(est == 1, "1", aOR),
+    CI = if_else(est == 1, "(ref)", CI),
+    denom = paste0(wt, ", ", n)
+  ) %>%
+  left_join(comp_labels, by = "Comparison") |> 
+  select(label, Cat, aOR, CI, P, denom) |> 
+  mutate(Cat = if_else(Cat == "glob_p", "", Cat),
+         `Weighted,\nunweighted` = if_else(str_detect(denom, "NA"), "", denom),
+         across(everything(), replace_na, ""),
+         across(everything(), str_replace, "<", "&lt;")) |> 
+  select(-denom) |> 
+  rename(` `  = Cat) |> 
+  mutate(blank = "") |> 
+  group_by(label) |> 
+  gt(rowname_col = 'blank')
+
+```
+
+
+## Table Sx (not currently included) - Summing 'switch' percentages
 
 ```{r all_switch}
 wave2_data %>%
