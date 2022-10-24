@@ -509,7 +509,13 @@ wave2_data %>%
   group_by(preg_when) %>% 
   summarise(mean_sc = weighted.mean(D_LMUPScore_w2, w = weight2, na.rm = TRUE),
             # sd_sc = sd(D_LMUPScore_w2, na.rm = TRUE),
-            sd_sc = sqrt(Hmisc::wtd.var(D_LMUPScore_w2, weights = weight2, na.rm = TRUE)))
+            sd_sc = sqrt(Hmisc::wtd.var(D_LMUPScore_w2, weights = weight2, na.rm = TRUE)),
+            n = n(),
+            n_unpl = sum(D_LMUPScore_w2 < 4),
+            p_unpl = n_unpl/n,
+            w_n_unpl = sum(weight2 * (D_LMUPCat_w2 == "Unplanned")),
+            w_n = sum(weight2),
+            w_p_unpl = w_n_unpl/w_n)
 
 # joining tables pregnancy-unplanned ORs ----------------------------------
 

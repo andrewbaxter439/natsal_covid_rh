@@ -398,6 +398,7 @@ wave2_data %>%
   select(D_ConServAcc_w2, D_Age5Cat_w2, weight2) %>% 
   group_by(D_ConServAcc_w2, D_Age5Cat_w2) %>% 
   summarise(wt = sum(weight2)) %>% 
+  filter(!is.na(D_ConServAcc_w2)) |> 
   nest() %>% 
   mutate(data = map(data, ~adorn_totals(.x))) %>% 
   unnest(data) %>% 

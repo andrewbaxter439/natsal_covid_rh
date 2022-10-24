@@ -410,8 +410,8 @@ conceptions_abortions_yearly
 # grid.draw(p)
 # (surv_graphs + p) / guide_area()  + plot_layout(guides = "collect", heights = c(10, 1))
 
-ggsave("suveillance_comparison_2.png", height = 30, width = 24, units = "cm", dpi = 400)
-ggsave("suveillance_comparison_2.svg", height = 30, width = 24, units = "cm", dpi = 400)
+# ggsave("suveillance_comparison_2.png", height = 30, width = 24, units = "cm", dpi = 400)
+# ggsave("suveillance_comparison_2.svg", height = 30, width = 24, units = "cm", dpi = 400)
 
   # testing significance - move to rmd? -------------------------------------
 
@@ -437,11 +437,11 @@ surv_data_tidy %>%
   ungroup() %>%
   pivot_wider(names_from = term, values_from = c(estimate, conf.low, conf.high),
               names_glue = "{term}_{.value}") %>% 
-  arrange(outcome, gender) %T>% 
+  arrange(gender, outcome) %T>% 
   {
     cat(
       glue::glue(
-        "From {.$minyear} to 2019, {.$gender} saw a yearly change in {.$outcome} of {signif(.$time_estimate, 3)} per 100 {.$gender} ({signif(.$time_conf.low, 3)}, {signif(.$time_conf.high, 3)})"
+        "From {.$minyear} to 2019, {.$gender} saw a yearly change in {.$outcome} of {sprintf('%.2f', signif(.$time_estimate, 3))} per 100 {.$gender} ({sprintf('%.2f', signif(.$time_conf.low, 3))}, {sprintf('%.2f', signif(.$time_conf.high, 3))})"
       ),
       sep = "\n"
     )
@@ -450,7 +450,7 @@ surv_data_tidy %>%
   {
     cat(
       glue::glue(
-        "In 2020, {.$gender} saw a change in {.$outcome} of {signif(.$covid_estimate, 3)} per 100 {.$gender} ({signif(.$covid_conf.low, 3)}, {signif(.$covid_conf.high, 3)})"
+        "In 2020, {.$gender} saw a change in {.$outcome} of {sprintf('%.2f', signif(.$covid_estimate, 3))} per 100 {.$gender} ({sprintf('%.2f', signif(.$covid_conf.low, 3))}, {sprintf('%.2f', signif(.$covid_conf.high, 3))})"
       ),
       sep = "\n"
     )

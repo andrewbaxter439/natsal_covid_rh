@@ -28,6 +28,7 @@ pts <- function (size) return(size * 5/14)
 t <- wave2_data %>%
   mutate(
     D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
     SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
   ) %>%
   demographics_per_outcome(
@@ -59,6 +60,7 @@ wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
            D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+           D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
            SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
          ) %>% 
   crosstab_per_outcome(lt = "&lt;",
@@ -88,11 +90,12 @@ wave2_data %>%
 
 ```{r}
 wave2_data %>%
-  filter(as.numeric(D_ConNoCon_w2) != 4,
+  filter(as.numeric(D_ConNoCon_w2) %in% 1:3,
          D_ConPreUs_w2 == "More effective method") %>%
   mutate(
     across(where(is.factor), .fns = ~ fct_drop(.x)),
     D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
     SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
     D_StopOrSwitch_w2 = fct_collapse(
       D_SwitchTo_w2,
@@ -136,7 +139,7 @@ wave2_data %>%
 
 ```{r, warning=FALSE}
 t <- pregnancy_tables(wave2_data, lt = "&lt;") %>% 
-  tab_header(title = "A pregnancy in the last year and proportion of pregnancies which were unplanned (% (95%CI)); mean and adjusted differences in LMUP score (difference (CI))") %>% 
+  # tab_header(title = "A pregnancy in the last year and proportion of pregnancies which were unplanned (% (95%CI)); mean and adjusted differences in LMUP score (difference (CI))") %>% 
   tab_style(style = cell_text(align = "left", size = 20), locations = cells_title("title"))
 
 t
@@ -145,7 +148,88 @@ t
 The London Measure of Unplanned Pregnancy (LMUP) score scores each pregnancy on a range of 0-12 to represent the relative plannedness of the pregnancy. Differences for LMUP score across all categories other than age are adjusted for age using a linear regression model.
 
 
-# Figure 1 -- Accessing contraception services
+# Figure 1 -- Accessing contraceptive services
+
+```{r, fig.height=5.9, fig.width = 10.2}
+serv_acc_gg <- wave2_data %>% 
+  select(D_ConServAcc_w2, D_Age5Cat_w2, weight2) %>% 
+  group_by(D_ConServAcc_w2, D_Age5Cat_w2) %>% 
+  summarise(wt = sum(weight2)) %>% 
+  filter(!is.na(D_ConServAcc_w2)) |> 
+  nest() %>% 
+  mutate(data = map(data, ~adorn_totals(.x))) %>% 
+  unnest(data) %>% 
+  mutate(D_ConServAcc_w2 =fct_relabel(D_ConServAcc_w2, str_wrap, 30)) |> 
+  ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServAcc_w2))) +
+  # stat_sum(geom = "col", position = "fill", width = 0.5) +
+  geom_col(position = "fill", width = 0.5) +
+  scale_fill_sphsu(
+    name =
+      str_wrap("Success or barriers accessing contraception services", 50) |> 
+      str_split("\n") |> 
+      sapply(str_pad, width = 50, side = "right") |> 
+      paste0(collapse = "\n") |> 
+      str_trim(), guide = guide_legend(byrow = TRUE)
+  ) +
+  theme_sphsu_light()+
+      theme(legend.spacing.y = unit(0.5, "cm"),
+          legend.key.size = unit(1, "cm"),
+          text = element_text(size = 12),
+          legend.text = element_text(size = 10)) +
+  scale_y_continuous("Weighted prevalence", 
+                     expand = expansion(0),
+                     labels = scales::percent) +
+  theme(panel.grid = element_blank(),
+        axis.ticks.x = element_blank()) +
+  scale_x_discrete("Age group")
+
+g <- ggplotGrob(serv_acc_gg)
+
+
+vals <- wave2_data %>%
+  filter(!is.na(D_ConServAcc_w2)) %>%
+  summarise(
+    n = n(),
+    wt = sum(weight2),
+    chisq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServAcc_w2, weight = weight2)[1],
+    p = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServAcc_w2, weight = weight2)[3]
+  ) %>%
+  unclass
+
+label <-
+  glue::glue(
+    "Denominators (weighted, unweighted): {round(vals$wt, 0)}, {vals$n}<br>
+           X^2 = {round(vals$chisq, 2)}<br>
+           p {ifelse(vals$p<0.001, '<0.001', paste0('= ', round(vals$p, 3)))}"
+  )
+
+# leg2 <- gtable::gtable_add_grob(g$grob[[15]], textGrob(label, gp = gpar(fontsize = 10)), 5, 3)
+g$grob[[15]]$heights[[5]] <- unit(40, "mm")
+
+g$grobs[[15]] <-
+  gtable::gtable_add_grob(
+    g$grob[[15]],
+    gridtext::richtext_grob(
+      label,
+      gp = grid::gpar(fontsize = 10),
+      x = unit(0.1, "npc"),
+      y = unit(0, "npc"),
+      vjust = -1,
+      hjust = 0
+    ),
+    5,
+    3
+  )
+
+# print(gridExtra::grid.arrange(g))
+serv_acc_gg
+
+
+  
+```
+
+
+# Figure 3 -- Barriers accessing contraceptive services
 
 ```{r access_contr, fig.height=5.9, fig.width = 10.2}
 serv_acc_reasons_tidy <- wave2_data %>% 
@@ -177,21 +261,21 @@ serv_acc_reasons_tidy <- wave2_data %>%
     ) %>%
     ungroup()
 
-serv_acc_gg <- serv_acc_reasons_tidy %>%
-  mutate(D_ConServFailWhy_w2 = fct_relabel(D_ConServFailWhy_w2, str_wrap, 40)) |> 
+serv_bar_gg <- serv_acc_reasons_tidy %>%
+  mutate(D_ConServFailWhy_w2 = fct_relabel(D_ConServFailWhy_w2, str_wrap, 30)) |> 
   group_by(D_ConServFailWhy_w2) %>% 
-  nest() %>% 
-  mutate(data = map(data, ~adorn_totals(.x))) %>% 
-  unnest(data) %>% 
+  # nest() %>% 
+  # mutate(data = map(data, ~adorn_totals(.x))) %>% 
+  # unnest(data) %>% 
   ggplot(aes(D_Age5Cat_w2, wt, fill = fct_rev(D_ConServFailWhy_w2))) +
   geom_col(position = "fill", width = 0.5) +
-  scale_fill_sphsu(name = NULL,
-                   guide =  guide_legend(byrow = TRUE)) +
+  scale_fill_sphsu(name = 
+                     str_pad("Reported barriers accessing contraception services", 50, side = "right"), guide = guide_legend(byrow = TRUE)) +
   theme_sphsu_light() +
     theme(legend.spacing.y = unit(0.5, "cm"),
           legend.key.size = unit(1, "cm"),
           text = element_text(size = 12),
-          legend.text = element_text(size = 14)) +
+          legend.text = element_text(size = 10)) +
   scale_y_continuous("Weighted prevalence", 
                      expand = expansion(0),
                      labels = scales::percent) +
@@ -199,32 +283,61 @@ serv_acc_gg <- serv_acc_reasons_tidy %>%
         axis.ticks.x = element_blank()) +
   scale_x_discrete("Age group")
 
-g <- ggplotGrob(serv_acc_gg)
+g2 <- ggplotGrob(serv_bar_gg)
 
 
-vals <- wave2_data %>% 
-  filter(!is.na(D_ConServFailWhy_w2)) %>% 
-  summarise(n = n(),
-            wt = sum(weight2),
-            chisq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[1],
-            p = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[3]) %>% 
+vals <- wave2_data %>%
+  filter(!is.na(D_ConServFailWhy_w2)) %>%
+  summarise(
+    n = n(),
+    wt = sum(weight2),
+    chisq = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[1],
+    p = weights::wtd.chi.sq(D_Age5Cat_w2, D_ConServFailWhy_w2, weight = weight2)[3]
+  ) %>%
   unclass
 
-label <- glue::glue("Denominators (weighted, unweighted): {round(vals$wt, 0)}, {vals$n}<br>
+label <-
+  glue::glue(
+    "Denominators (weighted, unweighted): {round(vals$wt, 0)}, {vals$n}<br>
            X^2 = {round(vals$chisq, 2)}<br>
-           p-value = {round(vals$p, 3)}")
+           p {ifelse(vals$p<0.001, '<0.001', paste0('= ', round(vals$p, 3)))}"
+  )
 
-# leg2 <- gtable::gtable_add_grob(g$grob[[15]], textGrob(label, gp = gpar(fontsize = 10)), 5, 3)
-g$grob[[15]]$heights[[5]] <- unit(40, "mm")
 
-g$grobs[[15]] <- gtable::gtable_add_grob(g$grob[[15]], gridtext::richtext_grob(label, gp = grid::gpar(fontsize = 10),
-                                                                               x = unit(0.1, "npc"),
-                                                                               y = unit(0, "npc"),
-                                                                               vjust = -1, hjust = 0), 5, 3)
+g2$grob[[15]]$heights[[5]] <- unit(40, "mm")
 
-print(gridExtra::grid.arrange(g))
+g2$grobs[[15]] <-
+  gtable::gtable_add_grob(
+    g2$grob[[15]],
+    gridtext::richtext_grob(
+      label,
+      gp = grid::gpar(fontsize = 10),
+      x = unit(0.1, "npc"),
+      y = unit(0, "npc"),
+      vjust = -1,
+      hjust = 0
+    ),
+    5,
+    3
+  )
+
+serv_bar_gg
+
+# print(gridExtra::grid.arrange(g2))
 
 ```
+
+## combined no stats
+
+```{r, fig.height=12, fig.width=10.2}
+library(patchwork)
+serv_acc_gg/serv_bar_gg +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+ggsave(file = "graphs/Figure 1.png", height = 28, width = 24, units = "cm", dpi = 400)
+
+```
+
 
 
 # Supplementary tables
@@ -233,9 +346,10 @@ print(gridExtra::grid.arrange(g))
 
 ```{r}
 wave2_data %>%
-  filter(as.numeric(D_ConServAcc_w2) != 1) %>% 
+  filter(as.numeric(D_ConServAcc_w2) != 3) %>% 
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
          D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+         D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
          SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
   ) %>% 
   crosstab_per_outcome(lt = "&lt;",
@@ -264,9 +378,10 @@ wave2_data %>%
 ```{r}
 wave2_data %>%
   filter(as.numeric(D_ConNoCon_w2) != 4,
-         as.numeric(D_ConPre_w2) != 3) %>% 
+         as.numeric(D_ConPre_w2) != 3) %>%
   mutate(across(where(is.factor), .fns = ~fct_drop(.x)),
          D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+         D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
          SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
   ) %>% 
   crosstab_per_outcome(lt = "&lt;",
@@ -495,6 +610,7 @@ wave2_data %>%
   mutate(
     across(where(is.factor), .fns = ~ fct_drop(.x)),
     D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+    D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
     SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
     D_StopOrSwitch_w2 = fct_collapse(
       D_SwitchTo_w2,
@@ -538,6 +654,7 @@ wave2_data %>%
     across(where(is.factor), .fns = ~ fct_drop(.x)),
     D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
     SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+    D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
     D_StopOrSwitch_w2 = fct_collapse(
       D_SwitchTo_w2,
       "Stopped using contraceptives" = "Stopped using contraceptives",

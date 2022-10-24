@@ -60,9 +60,11 @@ serv_acc_data <- wave2_data %>%
     serv_acc = ServAcc2_w2,
     serv_barr = ServTry4_w2,
   D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
-  SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2),
+  D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
+  SDSdrinkchangeW2_w2 = relevel(fct_rev(SDSdrinkchangeW2_w2), ref = "About the same"),
+  qsg = fct_relabel(qsg, str_extract, "^.*(?= - )"),
   .keep = "unused") %>% 
-  select(-D_ConServAcc_w2) 
+  select(-D_ConServAcc_w2)
   
 
 
@@ -74,8 +76,11 @@ serv_acc_ors <-
   pivot_longer(-c(serv_acc, weight2, D_Age5Cat_w2),
                names_to = "Comparison",
                values_to = "Cat") %>%
-  nest(-Comparison) %>%
+  # mutate(Cat = fct_inorder(Cat)) |> 
+  nest(data = -Comparison) %>%
   mutate(
+    data = map2(data, Comparison, ~ mutate(.x, Cat = factor(Cat, levels = levels(serv_acc_data[[.y]])))),
+    # data = map(data, ~ mutate(.x, Cat = fct_inorder(Cat))),
     mod_serv_acc = map(data, ~ return_svy_ORs(.x, serv_acc ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
@@ -139,8 +144,10 @@ serv_barr_ors <- serv_acc_data %>%
   select(-serv_acc) %>% 
   filter(!is.na(serv_barr)) %>% 
   pivot_longer(-c(serv_barr, weight2, D_Age5Cat_w2), names_to = "Comparison", values_to = "Cat") %>% 
+  mutate(Cat = fct_inorder(Cat)) |> 
   nest(-Comparison) %>% 
   mutate(
+    data = map2(data, Comparison, ~ mutate(.x, Cat = factor(Cat, levels = levels(serv_acc_data[[.y]])))),
     mod_serv_barr = map(data, ~ return_svy_ORs(.x, serv_barr ~ Cat + D_Age5Cat_w2, weight2)),
     sums = map(
       data,
@@ -233,6 +240,7 @@ serv_barr_disp <- comp_labels %>%
 draw_forest_table() 
 
 draw_forest_table() %>%
+ggsave("graphs/forest_plot.png", plot = ., height = 230, width = 330, units = "mm")
 ggsave("graphs/forest_plot.svg", plot = ., height = 230, width = 330, units = "mm")
 
 # this is tricky - doing by gplot -----------------------------------------
@@ -307,7 +315,7 @@ forest2 <- serv_barr_disp %>%
         plot.title = element_text(size = 10),
         strip.placement = "outside"
       ) +
-      ggtitle(paste0("\n", "Barriers accessing Contraceptive Services"))
+      ggtitle(paste0("\n", "Unmet need of Contraceptive Services"))
     
     base_plot <- serv_acc_disp %>%
       # filter(Coefficient == coefficient) %>%

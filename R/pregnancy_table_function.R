@@ -62,6 +62,7 @@ pregnancy_tables <- function(all_data, lt = "\u003C") {
         TRUE ~ 0L
       ),
       D_Edu3Cat_w2 = fct_rev(D_Edu3Cat_w2),
+      D_relstatcatv7_w2 = fct_rev(D_relstatcatv7_w2),
       SDSdrinkchangeW2_w2 = fct_rev(SDSdrinkchangeW2_w2)
     )
   

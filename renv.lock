@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.2.0",
+    "Version": "4.2.1",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -278,17 +278,6 @@
         "jsonlite",
         "rlang",
         "sass"
-      ]
-    },
-    "cachem": {
-      "Package": "cachem",
-      "Version": "1.0.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "648c5b3d71e6a37e3043617489a0a0e9",
-      "Requirements": [
-        "fastmap",
-        "rlang"
       ]
     },
     "callr": {
@@ -657,17 +646,6 @@
       "Hash": "465ccb84427f5fe2c54f8620666db131",
       "Requirements": [
         "gtools"
-      ]
-    },
-    "gdtools": {
-      "Package": "gdtools",
-      "Version": "0.2.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "bdfa7431687797edff8c9b0eb9271cc8",
-      "Requirements": [
-        "Rcpp",
-        "systemfonts"
       ]
     },
     "gee": {
@@ -1124,17 +1102,6 @@
         "xfun"
       ]
     },
-    "memoise": {
-      "Package": "memoise",
-      "Version": "2.0.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "e2817ccf4a065c5d9d7f2cfbe7c1d78c",
-      "Requirements": [
-        "cachem",
-        "rlang"
-      ]
-    },
     "mgcv": {
       "Package": "mgcv",
       "Version": "1.8-40",
@@ -1254,37 +1221,6 @@
       "Repository": "CRAN",
       "Hash": "df58958f293b166e4ab885ebcad90e02",
       "Requirements": []
-    },
-    "officedown": {
-      "Package": "officedown",
-      "Version": "0.2.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "3155d3070224cbc38efd59a3948605d6",
-      "Requirements": [
-        "knitr",
-        "memoise",
-        "officer",
-        "rlang",
-        "rmarkdown",
-        "rvg",
-        "uuid",
-        "xml2",
-        "yaml"
-      ]
-    },
-    "officer": {
-      "Package": "officer",
-      "Version": "0.4.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "412d0a3a35484ddb3fffd07d5f38fa36",
-      "Requirements": [
-        "R6",
-        "uuid",
-        "xml2",
-        "zip"
-      ]
     },
     "openssl": {
       "Package": "openssl",
@@ -1608,20 +1544,6 @@
         "xml2"
       ]
     },
-    "rvg": {
-      "Package": "rvg",
-      "Version": "0.2.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "a823d1d2fd9dcb8eb648d85ad68be046",
-      "Requirements": [
-        "Rcpp",
-        "gdtools",
-        "officer",
-        "rlang",
-        "xml2"
-      ]
-    },
     "sandwich": {
       "Package": "sandwich",
       "Version": "3.0-1",
@@ -1759,16 +1681,6 @@
       "Repository": "CRAN",
       "Hash": "b227d13e29222b4574486cfcbde077fa",
       "Requirements": []
-    },
-    "systemfonts": {
-      "Package": "systemfonts",
-      "Version": "1.0.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "90b28393209827327de889f49935140a",
-      "Requirements": [
-        "cpp11"
-      ]
     },
     "testthat": {
       "Package": "testthat",
@@ -2057,14 +1969,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "458bb38374d73bf83b1bb85e353da200",
-      "Requirements": []
-    },
-    "zip": {
-      "Package": "zip",
-      "Version": "2.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "c7eef2996ac270a18c2715c997a727c5",
       "Requirements": []
     },
     "zoo": {
